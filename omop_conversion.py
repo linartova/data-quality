@@ -42,8 +42,8 @@ class DrugExposure:
 db_params = {
     'host': 'localhost',
     'port': 3306,
-    'user': 'martinamartina',
-    'password': 'smrdiminohy',
+    'user': '',
+    'password': '',
 }
 
 cdm_schema = ["""
@@ -394,9 +394,3 @@ def provide_connection(params):
 
 if __name__ == '__main__':
     provide_connection(db_params)
-
-    # TODO refactor and rename code
-    # TODO třeba si to znovu projít, postupně protestovat a zkontrolovat mapping pdfka
-    # TODO zamyslet se nad kvalitou a návrhem kódu
-
-    # TODO v jakém typu se insertuje DATE a YEAR - můžou být oba stringy?
