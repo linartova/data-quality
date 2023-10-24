@@ -1,3 +1,4 @@
+from typing import List
 import pymysql
 import xml.etree.ElementTree as ElementTree
 from collections import deque
@@ -37,6 +38,13 @@ class DrugExposure:
         self.drug_concept_id = drug_concept_id
         self.drug_exposure_start_date = drug_exposure_start_date
         self.drug_exposure_end_date = drug_exposure_end_date
+
+
+class ProcedureOccurrence:
+    def __init__(self, procedure_concept_id, procedure_date, procedure_source_value):
+        self.procedure_concept_id = procedure_concept_id
+        self.procedure_date = procedure_date
+        self.procedure_source_value = procedure_source_value
 
 
 db_params = {
@@ -85,12 +93,22 @@ CREATE TABLE IF NOT EXISTS specimen (
     FOREIGN KEY (person_id) REFERENCES person(id)
 );""", """
 CREATE TABLE IF NOT EXISTS drug_exposure (
-    drug_exposure_id INT,
+    drug_exposure_id INT AUTO_INCREMENT PRIMARY KEY,
     person_id INT,
     drug_concept_id INT,
     drug_exposure_start_date DATE,
     drug_exposure_end_date DATE,
     drug_type_concept_id INT,
+    FOREIGN KEY (person_id) REFERENCES person(id)
+);
+""", """ 
+CREATE TABLE IF NOT EXISTS procedure_occurrence (
+    procedure_occurrence_id INT AUTO_INCREMENT PRIMARY KEY,
+    person_id INT,
+    procedure_type_concept_id INT,
+    procedure_concept_id INT,
+    procedure_date DATE,
+    procedure_source_value VARCHAR(50),
     FOREIGN KEY (person_id) REFERENCES person(id)
 );
 """]
@@ -112,7 +130,6 @@ def read_xml_and_parse():
     result = []
     for element in root.iter():
         if element.tag == namespace + "BHPatient":
-
             # patient
             patient_id = element.find(namespace + "Identifier").text
             form = element.find(namespace +
@@ -149,12 +166,63 @@ def read_xml_and_parse():
             drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
             drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
 
+            # procedure occurrence
+            procedures = find_procedures(namespace, events, diagnosis)
+
             # initialize classes
             result.append([Patient(patient_id, sex, year_of_birth),
                            ObservationPeriod(observation_start_date, observation_end_date),
                            ConditionOccurrence(histopathology, date_diagnosis),
                            Specimen(sample_material_type, year_of_sample_connection, sample_id),
-                           DrugExposure(drug_concept_id, drug_exposure_start_date, drug_exposure_end_date)])
+                           DrugExposure(drug_concept_id, drug_exposure_start_date, drug_exposure_end_date),
+                           procedures])
+    return result
+
+
+def surgery_mapping(primary_surgery, secondary_surgery):
+    code_mapping = {"Abdomino-perineal resection": 4144721,
+                    "Anterior resection of rectum": 4166855,
+                    "Endo-rectal tumor resection": None,
+                    "Left hemicolectomy": 4219780,
+                    "Low anterior colon resection": None,
+                    "Pan-procto colectomy": None,
+                    "Right hemicolectomy": 4233412,
+                    "Sigmoid colectomy": 4225427,
+                    "Total colectomy": 4096461,
+                    "Transverse colectomy": 4097958,
+                    "Other": None}
+    surgery = primary_surgery if primary_surgery != "Other" else secondary_surgery
+    for code in code_mapping.keys():
+        if surgery == code:
+            return code, code_mapping.get(code)
+    return "Other", None
+
+
+def find_procedures(namespace, events, initial_diagnosis):
+    result = []
+    for event in events.findall(namespace + "Event"):
+        if event.attrib.get("eventtype") == "Diagnostic examination":
+            result.append(ProcedureOccurrence(4249893, None, "colonoscopy"))
+        elif event.attrib.get("eventtype") == "Surgery":
+            primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_49_1").text
+            secondary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_67_1").text
+            surgery_name, surgery_code = surgery_mapping(primary_surgery, secondary_surgery)
+            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_8_3").text)
+            date = initial_diagnosis + timedelta(weeks=start_week)
+            result.append(ProcedureOccurrence(surgery_code, date, surgery_name))
+        elif event.attrib.get("eventtype") == "Radiation therapy":
+            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+                namespace + "Dataelement_12_4").text)
+            date = initial_diagnosis + timedelta(weeks=start_week)
+            result.append(ProcedureOccurrence(4029715, date, "Radiaton therapy"))
+        elif event.attrib.get("eventtype") == "Targeted therapy":
+            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
+                namespace + "Dataelement_35_3").text)
+            date = initial_diagnosis + timedelta(weeks=start_week)
+            result.append(ProcedureOccurrence(None, date, "Targeted therapy"))
     return result
 
 
@@ -193,7 +261,9 @@ def put_data_into_right_types(data):
         condition_occurrence = create_condition_occurrences_data(record[2])
         specimen = create_specimen_data(record[3])
         drug_exposure = create_drug_exposure_data(record[4])
-        result.append((person, observation_period, condition_occurrence, specimen, drug_exposure))
+        procedure_occurrences = create_procedure_occurrences(record[5])
+        result.append(
+            (person, observation_period, condition_occurrence, specimen, drug_exposure, procedure_occurrences))
     return result
 
 
@@ -213,16 +283,16 @@ def create_observation_period_data(observation: ObservationPeriod):
 
 
 def condition_mapping_codes(condition):
-    codes_mapping = {"C 18.0": 432837,
-                     "C 18.1": 433143,
-                     "C 18.2": 4247719,
-                     "C 18.3": 438979,
-                     "C 18.4": 432257,
-                     "C 18.5": 437798,
-                     "C 18.6": 441800,
-                     "C 18.7": 436635,
-                     "C 19": 438699,
-                     "C 20": 74582}
+    codes_mapping = {"C18.0": 432837,
+                     "C18.1": 433143,
+                     "C18.2": 4247719,
+                     "C18.3": 438979,
+                     "C18.4": 432257,
+                     "C18.5": 437798,
+                     "C18.6": 441800,
+                     "C18.7": 436635,
+                     "C19": 438699,
+                     "C20": 74582}
     for code in codes_mapping.keys():
         if condition.find(code) != -1:
             return codes_mapping.get(code)
@@ -230,16 +300,16 @@ def condition_mapping_codes(condition):
 
 
 def condition_mapping_names(condition):
-    codes_mapping = {"C 18.0": "C 18.0 - Caecum",
-                     "C 18.1": "C 18.1 - Appendix",
-                     "C 18.2": "C 18.2 - Ascending colon",
-                     "C 18.3": "C 18.3 - Hepatic flexure",
-                     "C 18.4": "C 18.4 - Transverse colon",
-                     "C 18.5": "C 18.5 - Splenic flexure",
-                     "C 18.6": "C 18.6 - Descending colon",
-                     "C 18.7": "C 18.7 - Sigmoid colon",
-                     "C 19": "C 19 - Rectosigmoid junction ",
-                     "C 20": "C 20 - Rectum"}
+    codes_mapping = {"C18.0": "C 18.0 - Caecum",
+                     "C18.1": "C 18.1 - Appendix",
+                     "C18.2": "C 18.2 - Ascending colon",
+                     "C18.3": "C 18.3 - Hepatic flexure",
+                     "C18.4": "C 18.4 - Transverse colon",
+                     "C18.5": "C 18.5 - Splenic flexure",
+                     "C18.6": "C 18.6 - Descending colon",
+                     "C18.7": "C 18.7 - Sigmoid colon",
+                     "C19": "C 19 - Rectosigmoid junction ",
+                     "C20": "C 20 - Rectum"}
     for code in codes_mapping.keys():
         if condition.find(code) != -1:
             return codes_mapping.get(code)
@@ -289,9 +359,9 @@ def drug_exposure_mapping(drug_exposure):
                     "with radiotherapy": 40052183,
                     "Other": 0}
     for drug in drug_mapping.keys():
-        if drug_exposure == drug:
+        if drug_exposure.find(drug) != -1:
             return drug_mapping.get(drug)
-    return -1
+    return None
 
 
 def create_drug_exposure_data(drug_exposure: DrugExposure):
@@ -300,11 +370,20 @@ def create_drug_exposure_data(drug_exposure: DrugExposure):
             drug_exposure.drug_exposure_end_date.date(), 32809]
 
 
+def create_procedure_occurrences(procedures: List[ProcedureOccurrence]):
+    result = []
+    for procedure in procedures:
+        result.append([32809, procedure.procedure_concept_id, procedure.procedure_date,
+                       procedure.procedure_source_value])
+    return result
+
+
 def insert_data(prepared_data, cursor, conn):
     try:
         insert = "INSERT INTO"
         values = "VALUES"
         for record in prepared_data:
+            # person
             person = record[0]
             command = insert + " person (gender_concept_id, year_of_birth, race_concept_id," \
                                " ethnicity_concept_id, person_source_value, gender_source_value) " + \
@@ -312,37 +391,52 @@ def insert_data(prepared_data, cursor, conn):
             cursor.execute(command, person)
             person_id = cursor.lastrowid
 
+            # observation
             observation = deque(record[1])
             observation.appendleft(person_id)
             observation = list(observation)
             command = insert + " observation_period (person_id, " \
-                           "observation_period_start_date, observation_period_end_date, " \
-                           "period_type_concept_id) " + values + " (%s, %s, %s, %s);"
+                               "observation_period_start_date, observation_period_end_date, " \
+                               "period_type_concept_id) " + values + " (%s, %s, %s, %s);"
             cursor.execute(command, observation)
 
+            # condition
             condition_occurrence = deque(record[2])
             condition_occurrence.appendleft(person_id)
             condition_occurrence = list(condition_occurrence)
             command = insert + " condition_occurrence (person_id, condition_concept_id, " \
-                           "condition_start_date, condition_type_concept_id, " \
-                           "condition_source_value) " + values + " (%s, %s, %s, %s, %s);"
+                               "condition_start_date, condition_type_concept_id, " \
+                               "condition_source_value) " + values + " (%s, %s, %s, %s, %s);"
             cursor.execute(command, condition_occurrence)
 
+            # specimen
             specimen = deque(record[3])
             specimen.appendleft(person_id)
             specimen = list(specimen)
             command = insert + " specimen (person_id, specimen_concept_id, " \
-                           "specimen_type_concept_id, specimen_date, " \
-                           "specimen_source_id, specimen_source_value) " + values + " (%s, %s, %s, %s, %s, %s);"
+                               "specimen_type_concept_id, specimen_date, " \
+                               "specimen_source_id, specimen_source_value) " + values + " (%s, %s, %s, %s, %s, %s);"
             cursor.execute(command, specimen)
 
+            # drug exposure
             drug_exposure = deque(record[4])
             drug_exposure.appendleft(person_id)
             drug_exposure = list(drug_exposure)
             command = insert + " drug_exposure (person_id, drug_concept_id, " \
-                           "drug_exposure_start_date, drug_exposure_end_date, " \
-                           "drug_type_concept_id) " + values + " (%s, %s, %s, %s, %s);"
+                               "drug_exposure_start_date, drug_exposure_end_date, " \
+                               "drug_type_concept_id) " + values + " (%s, %s, %s, %s, %s);"
             cursor.execute(command, drug_exposure)
+
+            # procedure occurrence
+            for procedure_occurrence in record[5]:
+                procedure_occurrence = deque(procedure_occurrence)
+                procedure_occurrence.appendleft(person_id)
+                procedure_occurrence = list(procedure_occurrence)
+                command = insert + " procedure_occurrence (person_id, procedure_type_concept_id, " \
+                               "procedure_concept_id, procedure_date, procedure_source_value) " \
+                      + values + " (%s, %s, %s, %s, %s);"
+                cursor.execute(command, procedure_occurrence)
+
         conn.commit()
     except Exception as e:
         print(f"Error: {e}")
@@ -350,12 +444,15 @@ def insert_data(prepared_data, cursor, conn):
 
 def print_tables(cursor):
     try:
-        tables = ['condition_occurrence', 'drug_exposure', 'observation_period', 'person', 'specimen']
+        tables = ['condition_occurrence', 'drug_exposure', 'observation_period', 'person',
+                  'specimen', "procedure_occurrence"]
         for table in tables:
             cursor.execute("SELECT * FROM " + table)
             rows = cursor.fetchall()
+            print(table)
             for row in rows:
                 print(row)
+            print("")
     except Exception as e:
         print(f"Error: {e}")
 
@@ -366,6 +463,7 @@ def drop_tables(cursor):
         cursor.execute("DROP TABLE IF EXISTS condition_occurrence")
         cursor.execute("DROP TABLE IF EXISTS specimen")
         cursor.execute("DROP TABLE IF EXISTS drug_exposure")
+        cursor.execute("DROP TABLE IF EXISTS procedure_occurrence")
         cursor.execute("DROP TABLE IF EXISTS person")
     except Exception as e:
         print(f"Error: {e}")
