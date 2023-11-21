@@ -1,41 +1,38 @@
-from fhirclient import client
 import fhirclient.models.patient as p
 import fhirclient.models.condition as c
 import fhirclient.models.specimen as s
-from datetime import date
 from fhirclient.models.fhirdate import FHIRDate
 import fhirclient.models.codeableconcept as codeAbleConcept
 from fhirclient.models.coding import Coding
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.age import Age
 from fhirclient.models.specimen import SpecimenCollection
+from datetime import date
 
 
-def create_outputs_rework(patient, condition, specimen, number):
-    patient_json = create_patient_rework(patient, number)
-    create_condition_rework(condition, patient_json)
-    create_specimen_rework(patient_json, specimen)
+def create_resources(patient, condition, specimen, smart_client):
+    patient_json = create_patient(patient, smart_client)
+    create_condition(condition, patient_json, smart_client)
+    create_specimen(patient_json, specimen, smart_client)
 
 
-# TODO create patient and store/load it at server
-def create_patient_rework(patient_info, number):
+def create_patient(patient_info, smart_client):
     patient = p.Patient()
     year_of_birth = str(date.today().year - int(patient_info.age))
     patient.birthDate = FHIRDate(year_of_birth)
     patient.gender = patient_info.sex
     # TODO zeptat se, co s identifierem
     # patient.identifier = patient_info.identifier
-    server = smart_client.server
-    resource = patient.as_json()
-    response = server.post_json(path="Patient", resource_json=resource) # TODO toto vyřeší všechny moje problémy
+
+    response = store_resources(smart_client, patient, "Patient")
     resource_on_server = response.content
     index_id = resource_on_server.rfind(b"id") + 5
     return resource_on_server[index_id:index_id+16].decode("utf-8")
 
 
-def create_condition_rework(condition_info, patient_id):
+def create_condition(condition_info, patient_id, smart_client):
     condition = c.Condition()
-    # TODO má date ve správném pořadí měsíce a dny????
+    # TODO má date ve správném pořadí měsíce a dny?
     condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
     # Clinical Status
@@ -86,17 +83,10 @@ def create_condition_rework(condition_info, patient_id):
 
     condition.code = code_in_json
 
-    server = smart_client.server
-    resource = condition.as_json()
-    server.post_json(path="Condition", resource_json=resource)
-
-    # TODO zkontrolovat
-    # TODO kde den diagnózy
-    # TODO nastudovat identifiery
-    # TODO kouknout znova na ty pdfka a porovnat s dokumentací, zda to správně konvertuju
+    store_resources(smart_client, condition, "Condition")
 
 
-def create_specimen_rework(patient_id, specimen_info):
+def create_specimen(patient_id, specimen_info, smart_client):
     specimen = s.Specimen()
 
     # collection collected
@@ -113,7 +103,17 @@ def create_specimen_rework(patient_id, specimen_info):
     # subject
     specimen.subject = FHIRReference({'reference': "Patient/" + patient_id})
 
-    # TODO refactoring, do samostatné funkce
+    store_resources(smart_client, specimen, "Specimen")
+
+
+def store_resources(smart_client, file, type):
     server = smart_client.server
-    resource = specimen.as_json()
-    server.post_json(path="Specimen", resource_json=resource)
+    resource = file.as_json()
+    return server.post_json(path=type, resource_json=resource)
+
+
+# http://hl7.org/fhir
+# http://terminology.hl7.org/CodeSystem/condition-clinical
+# http://terminology.hl7.org/CodeSystem/condition-ver-status
+# http://fhir.de/CodeSystem/bfarm/icd-10-gm
+# http://fhir.de/StructureDefinition/CodingICD10GM

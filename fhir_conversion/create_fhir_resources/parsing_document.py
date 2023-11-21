@@ -2,8 +2,8 @@ import xml.etree.ElementTree as ElementTree
 from create_fhir_resources.fhir_conversion_classes import Patient, Specimen, Condition
 
 
-def read_xml_and_create_classes():
-    tree = ElementTree.parse('import_example 1.xml')
+def read_xml_and_create_classes(file_name):
+    tree = ElementTree.parse(file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
     result = []
