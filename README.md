@@ -7,6 +7,23 @@ This repository contains all materials tied to the Data Quality Framework Projec
 Run conversion to FHIR with commands:
 
 ```
-cd fhir/conversion
-python main.py -d <data_file_name> -s <server_url>
+python run.py "data_file_name" --fhir <server_url>
 ```
+
+## OMOP data quality
+### How to load data into OMOP QC tool
+
+Run conversion to OMOP with commands:
+
+```
+python run.py "data_file_name" --ohdsi_host "host" --ohdsi_port "port" --ohdsi_user "user" --ohdsi_password "pswd" --ohdsi_database "dtbs" --ohdsi_schema "schema"
+```
+
+## Both
+
+Run conversion to both standards with commands:
+
+```
+python run.py "data_file_name" --fhir <server_url> --ohdsi_host "host" --ohdsi_port "port" --ohdsi_user "user" --ohdsi_password "pswd" --ohdsi_database "dtbs" --ohdsi_schema "schema"
+```
+
