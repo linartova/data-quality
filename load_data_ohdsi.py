@@ -35,10 +35,13 @@ class Specimen:
 
 
 class DrugExposure:
-    def __init__(self, drug_concept_id, drug_exposure_start_date, drug_exposure_end_date):
+    def __init__(self, drug_concept_id, drug_exposure_start_date, drug_exposure_end_date, drug_source_value):
         self.drug_concept_id = drug_concept_id
         self.drug_exposure_start_date = drug_exposure_start_date
+        self.drug_exposure_start_datetime = drug_exposure_start_date
         self.drug_exposure_end_date = drug_exposure_end_date
+        self.drug_exposure_end_datetime = drug_exposure_end_date
+        self.drug_source_value = drug_source_value
 
 
 class ProcedureOccurrence:
@@ -47,14 +50,6 @@ class ProcedureOccurrence:
         self.procedure_date = procedure_date
         self.procedure_source_value = procedure_source_value
 
-
-def create_database_and_tables(schema, cursor):
-    try:
-        cursor.execute("CREATE DATABASE IF NOT EXISTS omop_cdm_database")
-        for table in schema:
-            cursor.execute(table)
-    except Exception as e:
-        print(f"Error: {e}")
 
 
 def read_xml_and_parse(file_name):
@@ -78,38 +73,63 @@ def read_xml_and_parse(file_name):
 
             # observation period
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
-            observation_start_date = find_observation_start_date(namespace, events).text
+            observation_start_date = find_observation_start_date(namespace, events)
             observation_end_date = form.find(namespace + "Dataelement_6_3").text
 
             # condition occurrence
             histopathology = find_histopathology(namespace, events).text
 
             # specimen
-            year_of_sample_connection = find_sample(namespace, events).find(namespace + "Dataelement_89_3").text
-            sample_material_type = find_sample(namespace, events).find(namespace + "Dataelement_54_2").text
-            sample_id = find_sample(namespace, events).find(namespace + "Dataelement_56_2").text
+            specimens = find_specimens(namespace, events)
 
             # drug exposure
-            pharmacotherapy = find_pharmacotherapy(namespace, events)
-            drug_concept_id = pharmacotherapy.find(namespace + "Dataelement_59_5").text
-
-            start_week = int(pharmacotherapy.find(namespace + "Dataelement_10_2").text)
-            end_week = int(pharmacotherapy.find(namespace + "Dataelement_11_2").text)
             diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
-
-            drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
-            drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
+            drug_exposures = find_drug_exposures(namespace, events, diagnosis)
 
             # procedure occurrence
             procedures = find_procedures(namespace, events, diagnosis)
-
+            procedures = procedures + find_diagnostic_procedures(namespace, form, date_diagnosis)
             # initialize classes
             result.append([Patient(patient_id, sex, year_of_birth),
                            ObservationPeriod(observation_start_date, observation_end_date),
                            ConditionOccurrence(histopathology, date_diagnosis),
-                           Specimen(sample_material_type, year_of_sample_connection, sample_id),
-                           DrugExposure(drug_concept_id, drug_exposure_start_date, drug_exposure_end_date),
+                           specimens,
+                           drug_exposures,
                            procedures])
+    return result
+
+
+# todo napsat docs o tom datu diagnoz
+def find_diagnostic_procedures(namespace, form, diagnosis):
+    result = []
+    # liver_imaging
+    liver_imaging = form.find(namespace + "Dataelement_61_5").text
+    if liver_imaging.find("Liver imaging - Done") != -1:
+        result.append(ProcedureOccurrence(4085576, diagnosis, "liver imaging"))
+
+    # ct
+    ct = form.find(namespace + "Dataelement_31_3").text
+    if ct.find("CT - Done") != -1:
+        result.append(ProcedureOccurrence(4019823, diagnosis, "CT"))
+
+
+    # colonoscopy
+    colonoscopy = form.find(namespace + "Dataelement_88_1").text
+    if colonoscopy.find("Colonoscopy diagnostic exam - Positive") != -1:
+        result.append(ProcedureOccurrence(4249893, diagnosis, "colonoscopy"))
+
+
+    # lung_imaging
+    lung_imaging = form.find(namespace + "Dataelement_63_4").text
+    if lung_imaging.find("Lung imaging - Done") != -1:
+        result.append(ProcedureOccurrence(4082968, diagnosis, "lung imaging"))
+
+    # mri
+    mri = form.find(namespace + "Dataelement_30_3").text
+    if mri.find("MRI - Done") != -1:
+        result.append(ProcedureOccurrence(4013636, diagnosis, "MRI - Done"))
+
+
     return result
 
 
@@ -118,7 +138,7 @@ def surgery_mapping(primary_surgery, secondary_surgery):
                     "Anterior resection of rectum": 4166855,
                     "Endo-rectal tumor resection": None,
                     "Left hemicolectomy": 4219780,
-                    "Low anterior colon resection": None,
+                    "Low anteroir colon resection": None,
                     "Pan-procto colectomy": None,
                     "Right hemicolectomy": 4233412,
                     "Sigmoid colectomy": 4225427,
@@ -132,31 +152,81 @@ def surgery_mapping(primary_surgery, secondary_surgery):
     return "Other", None
 
 
+def find_specimens(namespace, events):
+    result = []
+    for event in events.findall(namespace + "Event"):
+        if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
+            sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
+
+            year_of_sample_connection = sample.find(namespace + "Dataelement_89_3").text
+            sample_material_type = sample.find(namespace + "Dataelement_54_2").text
+            sample_id = sample.find(namespace + "Dataelement_56_2").text
+
+            result.append(Specimen(sample_material_type, year_of_sample_connection, sample_id))
+    return result
+
+
+# todo udělat docs o mapování drug_source_value
+def find_drug_exposures(namespace, events, diagnosis):
+    result = []
+    for event in events:
+        if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Pharmacotherapy":
+            pharmacotherapy = event.find(namespace + "LogitudinalData").find(namespace + "Form3")
+
+            drug_source_value = pharmacotherapy.find(namespace + "Dataelement_59_5").text
+            if drug_source_value is None or drug_source_value == "Other":
+                drug_source_value = pharmacotherapy.find(namespace + "Dataelement_81_3").text
+
+            drug_concept_id = drug_exposure_mapping(drug_source_value)
+
+            start_week = int(pharmacotherapy.find(namespace + "Dataelement_10_2").text)
+            end_week = int(pharmacotherapy.find(namespace + "Dataelement_11_2").text)
+
+            drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
+            drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
+
+            if len(drug_source_value) > 50:
+                drug_source_value = None
+
+            if drug_concept_id is not None:
+                result.append(DrugExposure(drug_concept_id, drug_exposure_start_date,
+                                       drug_exposure_end_date, drug_source_value))
+    return result
+
+
+# todo to že je kdekoliv v tomto skriptu ".text" aniž bych ověřovala, zda to není None,
+# todo je náběh na spoustu errorů
+# todo udělat tady docs ohledně targeted therapy
 def find_procedures(namespace, events, initial_diagnosis):
     result = []
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Diagnostic examination":
             result.append(ProcedureOccurrence(4249893, None, "colonoscopy"))
+
         elif event.attrib.get("eventtype") == "Surgery":
             primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_49_1").text
-            secondary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_67_1").text
+            secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_67_1")
+            secondary_surgery = None if secondary_surgery_node is None else secondary_surgery_node.text
             surgery_name, surgery_code = surgery_mapping(primary_surgery, secondary_surgery)
             start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_8_3").text)
             date = initial_diagnosis + timedelta(weeks=start_week)
-            result.append(ProcedureOccurrence(surgery_code, date, surgery_name))
+            if surgery_code is not None:
+                result.append(ProcedureOccurrence(surgery_code, date, surgery_name))
+
         elif event.attrib.get("eventtype") == "Radiation therapy":
             start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
                 namespace + "Dataelement_12_4").text)
             date = initial_diagnosis + timedelta(weeks=start_week)
-            result.append(ProcedureOccurrence(4029715, date, "Radiaton therapy"))
-        elif event.attrib.get("eventtype") == "Targeted therapy":
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
-                namespace + "Dataelement_35_3").text)
-            date = initial_diagnosis + timedelta(weeks=start_week)
-            result.append(ProcedureOccurrence(None, date, "Targeted therapy"))
+            result.append(ProcedureOccurrence(4029715, date, "Radiation therapy"))
+
+        # elif event.attrib.get("eventtype") == "Targeted Therapy":
+        #     start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
+        #         namespace + "Dataelement_35_3").text)
+        #     date = initial_diagnosis + timedelta(weeks=start_week)
+        #     result.append(ProcedureOccurrence(None, date, "Targeted therapy"))
     return result
 
 
@@ -167,41 +237,51 @@ def find_histopathology(namespace, events):
                 namespace + "Dataelement_92_1")
 
 
-def find_sample(namespace, events):
-    for event in events.findall(namespace + "Event"):
-        if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
-            return event.find(namespace + "LogitudinalData").find(namespace + "Form1")
-
-
 def find_observation_start_date(namespace, events):
-    for event in events:
+    year_of_sample_collection = []
+    for event in events.findall(namespace + "Event"):
         if "eventtype" in event.attrib:
             if event.attrib["eventtype"] == "Sample":
-                return event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
-                    namespace + "Dataelement_89_3")
+                year_of_sample_collection.append((event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
+                    namespace + "Dataelement_89_3")).text)
+    years = [datetime.strptime(year, '%Y') for year in year_of_sample_collection]
+    return min(years)
 
 
-def find_pharmacotherapy(namespace, events):
-    for event in events:
-        if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Pharmacotherapy":
-            return event.find(namespace + "LogitudinalData").find(namespace + "Form3")
+def retrieve_max_ids(cursor, schema, table):
+    cursor.execute("SELECT MAX(" + table + "_" + "id) FROM " + schema + "." + table)
+    highest_id = cursor.fetchone()[0]
+    if highest_id is None:
+        ids = 0
+    else:
+        ids = highest_id + 1
+    return ids
 
 
-def put_data_into_right_types(data):
+def put_data_into_right_types(data, cursor):
     result = []
+    person_ids = retrieve_max_ids(cursor, schema, "person")
+    observation_ids = retrieve_max_ids(cursor, schema, "observation_period")
+    condition_ids = retrieve_max_ids(cursor, schema, "condition_occurrence")
+    specimen_ids = retrieve_max_ids(cursor, schema, "specimen")
+    drug_ids = retrieve_max_ids(cursor, schema, "drug_exposure")
+    procedure_ids = retrieve_max_ids(cursor, schema, "procedure_occurrence")
     for record in data:
-        person = create_person_data(record[0])
-        observation_period = create_observation_period_data(record[1])
-        condition_occurrence = create_condition_occurrences_data(record[2])
-        specimen = create_specimen_data(record[3])
-        drug_exposure = create_drug_exposure_data(record[4])
-        procedure_occurrences = create_procedure_occurrences(record[5])
+        person = create_person_data(record[0], person_ids)
+        observation_period = create_observation_period_data(record[1], observation_ids, person_ids)
+        condition_occurrence = create_condition_occurrences_data(record[2], condition_ids, person_ids)
+        specimen, specimen_ids = create_specimens(record[3], specimen_ids, person_ids)
+        drug_exposure, drug_ids = create_drug_exposures(record[4], drug_ids, person_ids)
+        procedure_occurrences, procedure_ids = create_procedure_occurrences(record[5], procedure_ids, person_ids)
         result.append(
             (person, observation_period, condition_occurrence, specimen, drug_exposure, procedure_occurrences))
+        person_ids += 1
+        observation_ids += 1
+        condition_ids += 1
     return result
 
 
-def create_person_data(person: Patient):
+def create_person_data(person: Patient, ids):
     if person.gender_concept_id == "male":
         gender = 8507
     elif person.gender_concept_id == "female":
@@ -209,21 +289,12 @@ def create_person_data(person: Patient):
     else:
         gender = 8521
     source_value = person.person_source_value
-    return [0, gender, person.year_of_birth, 0, 0, source_value, person.gender_concept_id]
+    return [ids, gender, person.year_of_birth, 0, 0, source_value, person.gender_concept_id]
 
 
-def create_observation_period_data(observation: ObservationPeriod):
-    print(observation.end_date)
-    year = int(observation.end_date[0:4])
-    print(year)
-    month = int(observation.end_date[5:7])
-    print(month)
-    day = int(observation.end_date[8:10])
-    print(day)
-    # return [0, datetime(int(observation.start_date), 1, 1).date(),
-    #         datetime(year, month, day).date(),
-    #         32809]
-    return [0, "2016-10-05", "2016-10-05", 32809]
+def create_observation_period_data(observation: ObservationPeriod, ids, person_ids):
+    return [ids, person_ids, observation.start_date,
+            datetime.strptime(observation.end_date, '%Y-%m-%d').date(), 32809]
 
 
 def condition_mapping_codes(condition):
@@ -260,8 +331,8 @@ def condition_mapping_names(condition):
     return None
 
 
-def create_condition_occurrences_data(condition: ConditionOccurrence):
-    return [0, condition_mapping_codes(condition.condition_concept_id),
+def create_condition_occurrences_data(condition: ConditionOccurrence, ids, person_ids):
+    return [ids, person_ids, condition_mapping_codes(condition.condition_concept_id),
             datetime.strptime(condition.condition_start_date, '%Y-%m-%d').date(), 32809,
             condition_mapping_names(condition.condition_source_value)]
 
@@ -284,67 +355,94 @@ def specimen_mapping_names(specimen):
         return "Other"
 
 
-def create_specimen_data(specimen: Specimen):
-    return [0, specimen_mapping_numbers(specimen.specimen_concept_id), 32809,
+def create_specimens(specimens: List[Specimen], ids, person_ids):
+    result = []
+    for specimen in specimens:
+        result.append([ids, person_ids, specimen_mapping_numbers(specimen.specimen_concept_id), 32809,
             datetime.strptime(specimen.specimen_date, '%Y').date(),
-            specimen.specimen_source_id, specimen_mapping_names(specimen.specimen_source_value)]
+            specimen.specimen_source_id, specimen_mapping_names(specimen.specimen_source_value)])
+        ids += 1
+    return result, ids
 
 
-def drug_exposure_mapping(drug_exposure):
-    drug_mapping = {"5-FU 1000 mg/m2 i.v. continuous infusion, day 1-5, weeks1 and 5": 40042274,
-                    "5-FU 225 mg/m2 i.v. continuous infusion, 5 days per week": 40042274,
-                    "5-FU 325-350 mg/m2 + LV 20 mg/m2 i.v. bolus, day1-5, weeks 1 and 5": 40220867,
-                    # TODO není tu typo? má být před week 1 mezera?
-                    "5-FU 400 mg/m2 + 100 mg i.v. bolus, d 1,2, 11,12,21,22": 40042274,
-                    "Capecitabine 800-825 mg/m2 bid po, day 1-5, together with radiation or continuously untill end "
-                    "of radiation": 40095743,
-                    "Only preoperatively (no standard): 5-FU 250 mg/m2 i.v. continuous infusion on days 1- 13 nad "
-                    "22-35 and oxaliplatin 50mg/m2 i.v. day 1,8,22 and 29": 40042274,
-                    "UFT (300-340mg/m2/day) and LV (22.5-90 mg/day) po continuously, 5(-7) days per week, together "
-                    "with radiotherapy": 40052183,
+def drug_exposure_mapping(drug_concept_id):
+    drug_mapping = {"5-FU": 40042274,
+                    "Capecitabine": 40095743,
+                    "Oxaliplatin": 35603923,
+                    "UFT": 40052183,
                     "Other": 0}
     for drug in drug_mapping.keys():
-        if drug_exposure.find(drug) != -1:
+        if drug_concept_id.find(drug) != -1:
             return drug_mapping.get(drug)
-    return None
+    return 0
 
 
-def create_drug_exposure_data(drug_exposure: DrugExposure):
-    return [0, drug_exposure_mapping(drug_exposure.drug_concept_id),
+def create_drug_exposures(drug_exposures: List[DrugExposure], ids, person_ids):
+    result = []
+    for drug_exposure in drug_exposures:
+        if drug_exposure.drug_concept_id is not None:
+            result.append([ids, person_ids, drug_exposure.drug_concept_id,
             drug_exposure.drug_exposure_start_date.date(),
-            drug_exposure.drug_exposure_end_date.date(), 32809]
+            drug_exposure.drug_exposure_start_datetime,
+            drug_exposure.drug_exposure_end_date.date(),
+            drug_exposure.drug_exposure_end_datetime,
+            32809,
+            drug_exposure.drug_source_value])
+            ids += 1
+    return result, ids
 
 
-def create_procedure_occurrences(procedures: List[ProcedureOccurrence]):
+def create_procedure_occurrences(procedures: List[ProcedureOccurrence], ids, persons_ids):
     result = []
     for procedure in procedures:
-        result.append([32809, procedure.procedure_concept_id, procedure.procedure_date,
+        result.append([ids, persons_ids, 32809, procedure.procedure_concept_id, procedure.procedure_date,
                        procedure.procedure_source_value])
-    return result
+        ids += 1
+    return result, ids
+
+
+def insert_specimen(specimens, cursor, insert, values):
+    for specimen in specimens:
+        specimen = list(specimen)
+        command = insert + "specimen (specimen_id, person_id, specimen_concept_id, " \
+                       "specimen_type_concept_id, specimen_date, " \
+                       "specimen_source_id, specimen_source_value) " + values + " (%s, %s, %s, %s, %s, %s, %s);"
+        cursor.execute(command, specimen)
+
+def insert_drug_exposure(drug_exposures, cursor, insert, values):
+    for drug_exposure in drug_exposures:
+        drug_exposure = list(drug_exposure)
+        command = insert + "drug_exposure (drug_exposure_id, person_id, drug_concept_id, " \
+                           "drug_exposure_start_date, drug_exposure_start_datetime, " \
+                           "drug_exposure_end_date, drug_exposure_end_datetime, " \
+                           "drug_type_concept_id, drug_source_value) " + values + " (%s, %s, %s, %s, %s, %s, %s, %s, %s);"
+        cursor.execute(command, drug_exposure)
+
+
+def insert_procedure_occurrence(procedure_occurrences, cursor, insert, values):
+    for procedure_occurrence in procedure_occurrences:
+        procedure_occurrence = list(procedure_occurrence)
+        command = insert + "procedure_occurrence (procedure_occurrence_id, person_id, procedure_type_concept_id, " \
+                       "procedure_concept_id, procedure_date, procedure_source_value) " \
+              + values + " (%s, %s, %s, %s, %s, %s);"
+        cursor.execute(command, procedure_occurrence)
 
 
 def insert_data(prepared_data, cursor, conn, schema):
     try:
         insert = "INSERT INTO " + schema + "."
         values = "VALUES"
-        ids = 0
-        p_ids = 0
         for record in prepared_data:
             # person
             person = record[0]
-            person[0] = ids
             command = insert + "person (person_id, gender_concept_id, year_of_birth, race_concept_id," \
                                " ethnicity_concept_id, person_source_value, gender_source_value)" + \
                       values + " (%s, %s, %s, %s, %s, %s, %s);"
             cursor.execute(command, person)
-            person_id = cursor.lastrowid
-            conn.commit()
 
             # observation
             observation = deque(record[1])
-            observation.appendleft(person_id)
             observation = list(observation)
-            observation[0] = ids
             command = insert + "observation_period (observation_period_id, person_id, " \
                                "observation_period_start_date, observation_period_end_date, " \
                                "period_type_concept_id) " + values + " (%s, %s, %s, %s, %s);"
@@ -352,46 +450,20 @@ def insert_data(prepared_data, cursor, conn, schema):
 
             # condition
             condition_occurrence = deque(record[2])
-            condition_occurrence.appendleft(person_id)
             condition_occurrence = list(condition_occurrence)
-            condition_occurrence[0] = ids
             command = insert + "condition_occurrence (condition_occurrence_id, person_id, condition_concept_id, " \
                                "condition_start_date, condition_type_concept_id, " \
                                "condition_source_value) " + values + " (%s, %s, %s, %s, %s, %s);"
             cursor.execute(command, condition_occurrence)
 
             # specimen
-            specimen = deque(record[3])
-            specimen.appendleft(person_id)
-            specimen = list(specimen)
-            specimen[0] = ids
-            command = insert + "specimen (specimen_id, person_id, specimen_concept_id, " \
-                               "specimen_type_concept_id, specimen_date, " \
-                               "specimen_source_id, specimen_source_value) " + values + " (%s, %s, %s, %s, %s, %s, %s);"
-            cursor.execute(command, specimen)
+            insert_specimen(record[3], cursor, insert, values)
 
             # drug exposure
-            drug_exposure = deque(record[4])
-            drug_exposure.appendleft(person_id)
-            drug_exposure = list(drug_exposure)
-            drug_exposure[0] = ids
-            command = insert + "drug_exposure (drug_exposure_id, person_id, drug_concept_id, " \
-                               "drug_exposure_start_date, drug_exposure_end_date, " \
-                               "drug_type_concept_id) " + values + " (%s, %s, %s, %s, %s, %s);"
-            cursor.execute(command, drug_exposure)
+            insert_drug_exposure(record[4], cursor, insert, values)
 
-            ids += 1
             # procedure occurrence
-            for procedure_occurrence in record[5]:
-                procedure_occurrence = deque(procedure_occurrence)
-                procedure_occurrence.appendleft(person_id)
-                procedure_occurrence.appendleft(p_ids)
-                procedure_occurrence = list(procedure_occurrence)
-                command = insert + "procedure_occurrence (procedure_occurrence_id, person_id, procedure_type_concept_id, " \
-                               "procedure_concept_id, procedure_date, procedure_source_value) " \
-                      + values + " (%s, %s, %s, %s, %s, %s);"
-                cursor.execute(command, procedure_occurrence)
-                p_ids += 1
+            insert_procedure_occurrence(record[5], cursor, insert, values)
 
         conn.commit()
     except Exception as e:
@@ -406,7 +478,7 @@ def load_data(params, input_file, schema):
 
         # drop_tables(cursor)
 
-        data = put_data_into_right_types(read_xml_and_parse(input_file))
+        data = put_data_into_right_types(read_xml_and_parse(input_file), cursor)
         insert_data(data, cursor, conn, schema)
         # print_tables(cursor)
 
@@ -415,14 +487,3 @@ def load_data(params, input_file, schema):
         conn.close()
     except Exception as e:
         print(f"Error: {e}")
-
-if __name__ == '__main__':
-    ohdsi = {
-    "host":'localhost',
-    "port": 5432,
-    "user": 'postgres',
-    "password" : 'smrdiminohy',
-    "database":"ohdsi"}
-    schema = "ohdsi_demo"
-    input_file = 'import_example.xml'
-    load_data(ohdsi, input_file, schema)

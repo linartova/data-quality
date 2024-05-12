@@ -1,13 +1,9 @@
 import argparse
 import psycopg2
-from load_data_fhir import read_xml_and_create_classes, create_files, create_ids_lists, provide_server_connection
+from load_data_fhir import read_xml_and_create_resources, provide_server_connection
 from load_data_ohdsi import load_data
-from quality_checks_fhir import (create_df, conformance_patient, conformance_specimen, conformance_condition,
-                                 conformance_relational, conformance_computational, completeness, uniqueness)
-from quality_checks_ohdsi import (create_df_omop, vital_status_timestamp_precedes_initial_diagnostic_date,
-                                  vital_status_timestamp_equals_initial_diagnostic_date, too_young_check,
-                                  pharma_start_end)
-from create_export_file import create_pdf_ohdsi, create_pdf_fhir
+from visualization_fhir import create_report_fhir
+from visualization_ohdsi import create_report_ohdsi
 
 
 def work_with_arguments():
@@ -80,55 +76,34 @@ def work_with_arguments():
     return input_file_path, standard, save, fhir, ohdsi, volume
 
 
-# TODO
 def fhir(url, file_name):
     # server
     smart_client = provide_server_connection(url)
 
-    # data
-    data = read_xml_and_create_classes(file_name)
+    # store resources
+    read_xml_and_create_resources(file_name, smart_client)
 
-    # create id files
-    create_files(data, smart_client)
-
-    # todo run checks and create svgs
-    server = smart_client.server
-    patients_id, specimens_id, conditions_id = create_ids_lists()
-    patients_df, specimens_df, conditions_df = create_df(patients_id, specimens_id, conditions_id, server)
-    conformance_computational(patients_df, specimens_df, conditions_df)
-
-    # todo create report
-    create_pdf_fhir()
+    # create report
+    create_report_fhir(smart_client.server)
 
 
-# todo
 def omop(ohdsi, input_file):
     schema = ohdsi.pop("schema")
     load_data(ohdsi, input_file, schema)
 
-    # todo create dfs
-    conn = psycopg2.connect(**ohdsi)
-    ddf = create_df_omop(conn, "ohdsi_demo.drug_exposure", schema)
-    # person_test_set = create_df_omop(con, "person")
-    # observation_period_test_set = create_df_omop(con, "observation_period")
-    # condition_occurrence_test_set = create_df_omop(con, "condition_occurrence")
-
-    # todo run checks and create svgs
-    pharma_start_end(ddf)
-
-    # todo create report
-    create_pdf_ohdsi()
+    # create report
+    con = psycopg2.connect(**ohdsi)
+    create_report_ohdsi(con, schema)
 
 
 if __name__ == '__main__':
-    omop(None, None)
     # todo add mypy
-    input_file_path, standard, save, fhir, ohdsi, volume = work_with_arguments()
-    print(standard)
-    if standard == "fhir":
-        fhir(fhir, input_file_path)
-    elif standard =="ohdsi":
-        omop(ohdsi, input_file_path)
-    elif standard == "both":
-        fhir(fhir, input_file_path)
-        omop(ohdsi, input_file_path)
+    # input_file_path, standard, save, url, ohdsi, volume = work_with_arguments()
+
+    # if standard == "fhir":
+    fhir("http://localhost:8080/fhir","ADOPT.xml")
+    # elif standard =="ohdsi":
+    #     omop(ohdsi, input_file_path)
+    # elif standard == "both":
+    #     fhir(fhir, input_file_path)
+    #     omop(ohdsi, input_file_path)

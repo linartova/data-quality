@@ -3,74 +3,85 @@ import plotly.express as px
 from _datetime import datetime
 
 
-def create_patient_data_frame(ids, server):
+# todo zkontrolovat, že každý check vyexportuje csv se sus records
+def create_patient_data_frame( server):
     dicts = []
-    for id in ids:
-        dict = server.request_json('http://localhost:8080/fhir/Patient/' + id)
-        meta = dict.pop("meta")
-        dict["meta_versionId"] = meta["versionId"]
-        dict["meta_lastUpdated"] = meta["lastUpdated"]
-        dicts.append(dict)
+    with open('patients_ids.txt', 'r') as ids:
+        for id in ids:
+            id = id[:-1]
+            dict = server.request_json('http://localhost:8080/fhir/Patient/' + id)
+            meta = dict.pop("meta")
+            dict["meta_versionId"] = meta["versionId"]
+            dict["meta_lastUpdated"] = meta["lastUpdated"]
+
+            identifier = dict.pop("identifier")[0]
+            dict["identifier_value"] = identifier["value"]
+            dicts.append(dict)
+
     return pd.DataFrame(dicts)
 
 
-def create_specimen_data_frame(ids, server):
+def create_specimen_data_frame(server):
     dicts = []
-    for id in ids:
-        dict = server.request_json('http://localhost:8080/fhir/Specimen/' + id)
+    with open('specimens_ids.txt', 'r') as ids:
+        for id in ids:
+            id = id[:-1]
+            dict = server.request_json('http://localhost:8080/fhir/Specimen/' + id)
 
-        meta = dict.pop("meta")
-        dict["meta_versionId"] = meta["versionId"]
-        dict["meta_lastUpdated"] = meta["lastUpdated"]
+            meta = dict.pop("meta")
+            dict["meta_versionId"] = meta["versionId"]
+            dict["meta_lastUpdated"] = meta["lastUpdated"]
 
-        type_ = dict.pop("type")
-        dict["type_text"] = type_["text"]
+            type_ = dict.pop("type")
+            dict["type_text"] = type_["text"]
 
-        collection = dict.pop("collection")
-        dict["collection_collectedDateTime"] = collection["collectedDateTime"]
+            collection = dict.pop("collection")
+            dict["collection_collectedDateTime"] = collection["collectedDateTime"]
 
-        subject = dict.pop("subject")
-        dict["subject_reference"] = subject["reference"]
+            subject = dict.pop("subject")
+            dict["subject_reference"] = subject["reference"]
 
-        dicts.append(dict)
+            dicts.append(dict)
     return pd.DataFrame(dicts)
 
 
-def create_condition_data_frame(ids, server):
+def create_condition_data_frame(server):
     dicts = []
-    for id in ids:
-        dict = server.request_json('http://localhost:8080/fhir/Condition/' + id)
+    with open('conditions_ids.txt', 'r') as ids:
+        for id in ids:
+            id = id[:-1]
+            dict = server.request_json('http://localhost:8080/fhir/Condition/' + id)
 
-        meta = dict.pop("meta")
-        dict["meta_versionId"] = meta["versionId"]
-        dict["meta_lastUpdated"] = meta["lastUpdated"]
+            meta = dict.pop("meta")
+            dict["meta_versionId"] = meta["versionId"]
+            dict["meta_lastUpdated"] = meta["lastUpdated"]
 
-        code = dict.pop("code")
-        coding = code.pop("coding").pop()
-        dict["code_coding_system"] = coding["system"]
-        dict["code_coding_code"] = coding["code"]
-        dict["code_coding_display"] = coding["display"]
-        dict["code_text"] = code["text"]
+            code = dict.pop("code")
+            coding = code.pop("coding").pop()
+            dict["code_coding_system"] = coding["system"]
+            dict["code_coding_code"] = coding["code"]
+            dict["code_coding_display"] = coding["display"]
+            dict["code_text"] = code["text"]
 
-        subject = dict.pop("subject")
-        dict["subject_reference"] = subject["reference"]
+            subject = dict.pop("subject")
+            dict["subject_reference"] = subject["reference"]
 
-        clinicalStatus = dict.pop("clinicalStatus")
-        clinicalStatus_coding = clinicalStatus.pop("coding").pop()
-        dict["clinicalStatus_coding_system"] = clinicalStatus_coding.pop("system")
-        dict["clinicalStatus_coding_code"] = clinicalStatus_coding.pop("code")
-        dict["clinicalStatus_coding_display"] = clinicalStatus_coding.pop("display")
+            clinicalStatus = dict.pop("clinicalStatus")
+            clinicalStatus_coding = clinicalStatus.pop("coding").pop()
+            dict["clinicalStatus_coding_system"] = clinicalStatus_coding.pop("system")
+            dict["clinicalStatus_coding_code"] = clinicalStatus_coding.pop("code")
+            dict["clinicalStatus_coding_display"] = clinicalStatus_coding.pop("display")
 
-        dicts.append(dict)
+            dicts.append(dict)
     return pd.DataFrame(dicts)
 
 
 def create_df(patients_id, specimens_id, conditions_id, server):
-    patients_df = create_patient_data_frame(patients_id, server)
+    patients_df = create_patient_data_frame(server)
     patients_df = patients_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
-    specimen_df = create_specimen_data_frame(specimens_id, server)
+    specimen_df = create_specimen_data_frame(server)
     specimen_df = specimen_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
-    condition_df = create_condition_data_frame(conditions_id, server)
+    condition_df = create_condition_data_frame(server)
     condition_df = condition_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
 
     #return  wf1.completeness(patients_df)
@@ -78,17 +89,21 @@ def create_df(patients_id, specimens_id, conditions_id, server):
 
 
 
-def completeness(df, number):
+def completeness(df):
     missing_values = pd.isnull(df).sum()
     fig = px.scatter(missing_values)
     fig.update_layout(xaxis_title='count of missing values', yaxis_title='attribute', title="Missing values",
                       showlegend=False)
-    fig.write_image("fhir_images/completeness_" + number + ".svg")
     return fig
 
 
-def uniqueness(df):
+def uniqueness(df, name):
+    df = df.copy()
     count_of_rows = df.shape[0]
+    df.drop(columns="meta_versionId", inplace=True)
+    df.drop(columns="meta_lastUpdated", inplace=True)
+    df.drop(columns="id", inplace=True)
+
     count_of_duplicates = df.duplicated().sum()
     result = {
         "Duplicates": ["Unique rows", "Duplicated"],
@@ -96,8 +111,9 @@ def uniqueness(df):
     }
     dff = pd.DataFrame(result)
     fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values')
-    return fig
 
+    df.to_csv("reports/omop/uniqueness" + name + ".csv", index=False)
+    return fig
 
 def conformance_patient(df):
     # gender
@@ -115,7 +131,6 @@ def conformance_patient(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
-    # TODO nastavit těm all records jinou barvu
     return fig
 
 
@@ -191,7 +206,6 @@ def conformance_condition(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
-    # TODO nastavit těm all records jinou barvu
     return fig
 
 
@@ -213,8 +227,6 @@ def conformance_specimen(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
-    # TODO je to spíš attributes než records
-    # TODO nastavit těm all records jinou barvu
     return fig
 
 
@@ -238,19 +250,20 @@ def conformance_relational(df, server):
     fig = px.bar(dff, x='Records', y='Count')
     return fig
 
-    # TODO tabulka invalid records
 
 
 def get_birthDay(pdf, subject_reference):
-    subject_reference_split = subject_reference.split()
+    subject_reference_split = subject_reference.split("/")
     patient_id = None
     if len(subject_reference_split) == 2:
         patient_id = subject_reference_split[1]
-    birthDay = None
+    birthDate = None
     if patient_id is not None:
-        patient = pdf.loc[patient_id]
-        birthDay = patient[patient]
-    return birthDay
+        patient = pdf.loc[pdf['id'] == patient_id]
+        if not patient.empty:
+            patient = patient.iloc[0]
+            birthDate = patient['birthDate']
+    return birthDate
 
 
 def conformance_computational(pdf, sdf, cdf):
@@ -268,8 +281,11 @@ def conformance_computational(pdf, sdf, cdf):
     for index in cdf.index:
         onsetDateTime = cdf["onsetDateTime"][index]
         recordedDate = cdf["recordedDate"][index]
-        subject_reference = sdf['subject_reference'][index]
-        birthDay = get_birthDay(pdf, subject_reference)
+
+        # todo dodělat i jinde
+        if index < len(sdf.index):
+            subject_reference = sdf['subject_reference'][index]
+            birthDay = get_birthDay(pdf, subject_reference)
         if birthDay is not None:
             if birthDay > onsetDateTime:
                 onsetDateTime_count += 1
@@ -290,24 +306,102 @@ def conformance_computational(pdf, sdf, cdf):
     return fig
 
 
-# TODO original checks
+# original checks
+# warnings
 # 4
-# age_at_primary_diagnosis < 15
-def age_at_primary_diagnosis(pdf):
-    count_of_rows = pdf.shape[0]
-
-    current_year = datetime.now().year
-    pdf["age_at_primary_diagnosis"] = current_year - pdf["year_of_birth"]
-    incorrect_df = pdf.loc[pdf['age'] < 15]
+def age_at_primary_diagnosis(pdf, cdf):
+    cdf_copy = cdf.copy()
+    cdf_copy["patient_id"] = cdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
+    pdf_copy = pdf.copy()
+    pdf_copy["patient_id"] = pdf_copy["id"]
+    merged_df = pd.merge(pdf_copy, cdf_copy, how="left", on="patient_id")
+    count_of_rows = merged_df.shape[0]
+    merged_df["age_at_diagnosis"] = merged_df["onsetDateTime"] - merged_df["birthDate"]
+    incorrect_df = merged_df.loc[merged_df['age_at_diagnosis'] < pd.Timedelta(days=15*365.25)]
     incorrect_count = incorrect_df.shape[0]
+
+    incorrect_df.to_csv('reports/fhir/too_young_patients.csv', index=False)
     result = {
         "Records": ["Number of records", "too_young_patient"],
         "Count": [count_of_rows, count_of_rows - incorrect_count]
     }
-
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
     return fig
 
+
 # 8
-# !is.na(diag_date) & diag_date > Sys.Date()
+def diagnosis_in_future(cdf):
+    now = datetime.now()
+    cdf_copy = cdf.copy()
+    count_of_rows = cdf_copy.shape[0]
+    cdf_copy["diagnosis_in_future"] = cdf_copy["recordedDate"] > now
+    incorrect_count = cdf_copy["diagnosis_in_future"].sum()
+
+    filter_ddf = cdf_copy[cdf_copy['diagnosis_in_future'] == True]
+    filter_ddf.to_csv('reports/fhir/diagnosis_in_future.csv', index=False)
+    result = {
+        "Records": ["Number of records", "diagnosis_in_future"],
+        "Count": [count_of_rows, incorrect_count]
+    }
+    dff = pd.DataFrame(result)
+    fig_dff = px.bar(dff, x='Records', y='Count')
+    return fig_dff
+
+
+# reports
+# 1+2
+def missing_collection_collectedDateTime(pdf, sdf):
+    sdf_copy = sdf.copy()
+    sdf_copy["patient_id"] = sdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
+    pdf_copy = pdf.copy()
+    pdf_copy["patient_id"] = pdf_copy["id"]
+    merged_ddf = pd.merge(pdf_copy, sdf_copy, how="left", on="patient_id")
+    count_of_rows = merged_ddf.shape[0]
+    merged_ddf = merged_ddf.dropna()
+
+    merged_ddf["missing_collection_collectedDateTime"] = (
+        merged_ddf["collection_collectedDateTime"].isnull())
+    incorrect_count = merged_ddf["missing_collection_collectedDateTime"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_collection_collectedDateTime'] == True]
+    filter_ddf.to_csv('reports/omop/patients_without_collection_collectedDateTime.csv', index=False)
+
+    filter_ddf = merged_ddf[merged_ddf['missing_collection_collectedDateTime'] == False]
+    filter_ddf.to_csv('reports/fhir/patients_with_collection_collectedDateTime.csv', index=False)
+
+    result = {
+        "Records": ["Number of records",
+                    "patients_without_missing_specimen_collection_collectedDateTime",
+                    "patients_with_missing_specimen_collection_collectedDateTime"],
+        "Count": [count_of_rows, incorrect_count, count_of_rows - incorrect_count]
+    }
+    dff = pd.DataFrame(result)
+    fig_dff = px.bar(dff, x='Records', y='Count')
+    return fig_dff
+
+
+# 3
+def patients_without_specimen_type_text(pdf, sdf):
+    sdf_copy = sdf.copy()
+    sdf_copy["patient_id"] = sdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
+    pdf_copy = pdf.copy()
+    pdf_copy["patient_id"] = pdf_copy["id"]
+    merged_ddf = pd.merge(pdf_copy, sdf_copy, how="left", on="patient_id")
+    count_of_rows = merged_ddf.shape[0]
+    merged_ddf = merged_ddf.dropna()
+
+    merged_ddf["missing_specimen_type_text"] = merged_ddf["type_text"].isnull()
+    incorrect_count_source = merged_ddf["missing_specimen_type_text"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_specimen_type_text'] == True]
+    filter_ddf.to_csv('reports/omop/patients_without_specimen_type_text.csv', index=False)
+
+    result = {
+        "Records": ["Number of records",
+                    "patients_without_specimen_type_text"],
+        "Count": [count_of_rows, incorrect_count_source]
+    }
+    dff = pd.DataFrame(result)
+    fig_dff = px.bar(dff, x='Records', y='Count')
+    return fig_dff

@@ -8,6 +8,7 @@ import fhirclient.models.codeableconcept as codeAbleConcept
 from fhirclient.models.coding import Coding
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.specimen import SpecimenCollection
+from fhirclient.models.identifier import Identifier
 from datetime import date
 
 
@@ -43,13 +44,14 @@ def provide_server_connection(url):
     return smart
 
 
-def read_xml_and_create_classes(file_name):
+def read_xml_and_create_resources(file_name, smart):
     tree = ElementTree.parse(file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
     result = []
     for element in root.iter():
         if element.tag == namespace + "BHPatient":
+            # patient
             patient_id = element.find(namespace + "Identifier").text
             form = element.find(namespace +
                                 "Locations").find(namespace +
@@ -58,14 +60,31 @@ def read_xml_and_create_classes(file_name):
                                                                                      "Form")
             sex = form.find(namespace + "Dataelement_85_1")
             age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1")
+
+            # condition
             date_diagnosis = form.find(namespace + "Dataelement_51_3")
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
             histopathology = find_histopathology(namespace, events)
-            year_of_sample_connection = find_sample(namespace, events)
-            sample_material_type = find_sample_material(namespace, events)
+
+            # specimen
+            specimens = find_specimens(namespace, events)
+
             result.append([Patient(patient_id, sex.text, age_at_primary_diagnostic.text),
                            Condition(histopathology.text, date_diagnosis.text),
-                           Specimen(sample_material_type.text, year_of_sample_connection.text)])
+                           specimens])
+    create_files(result, smart)
+
+
+def find_specimens(namespace, events):
+    result = []
+    for event in events.findall(namespace + "Event"):
+        if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
+
+            sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
+            year_of_sample_connection = sample.find(namespace + "Dataelement_89_3").text
+            sample_material_type = sample.find(namespace + "Dataelement_54_2").text
+
+            result.append(Specimen(sample_material_type, year_of_sample_connection))
     return result
 
 
@@ -76,26 +95,13 @@ def find_histopathology(namespace, events):
                 namespace + "Dataelement_92_1")
 
 
-def find_sample(namespace, events):
-    for event in events.findall(namespace + "Event"):
-        if event.attrib.get("eventtype") == "Sample":
-            return event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
-                namespace + "Dataelement_89_3")
-
-
-def find_sample_material(namespace, events):
-    for event in events.findall(namespace + "Event"):
-        if event.attrib.get("eventtype") == "Sample":
-            return event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
-                namespace + "Dataelement_54_2")
-
-
-
-def create_resources(patient, condition, specimen, smart_client):
+def create_resources(patient, condition, specimens, smart_client):
     patient_url = create_patient(patient, smart_client)
     condition_url = create_condition(condition, patient_url, smart_client)
-    specimen_url = create_specimen(patient_url, specimen, smart_client)
-    return patient_url, condition_url, specimen_url
+    specimen_urls = []
+    for specimen in specimens:
+        specimen_urls.append(create_specimen(patient_url, specimen, smart_client))
+    return patient_url, condition_url, specimen_urls
 
 
 def create_patient(patient_info, smart_client):
@@ -103,8 +109,8 @@ def create_patient(patient_info, smart_client):
     year_of_birth = str(date.today().year - int(patient_info.age))
     patient.birthDate = FHIRDate(year_of_birth)
     patient.gender = patient_info.sex
-    # TODO zeptat se, co s identifierem
-    # patient.identifier = patient_info.identifier
+    patient.identifier = [Identifier()]
+    patient.identifier[0].value = patient_info.identifier
 
     response = store_resources(smart_client, patient, "Patient")
     resource_on_server = response.content
@@ -114,7 +120,6 @@ def create_patient(patient_info, smart_client):
 
 def create_condition(condition_info, patient_id, smart_client):
     condition = c.Condition()
-    # TODO má date ve správném pořadí měsíce a dny?
     condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
     # Clinical Status
@@ -181,7 +186,6 @@ def create_specimen(patient_id, specimen_info, smart_client):
 
     # type
     type = codeAbleConcept.CodeableConcept()
-    # TODO I don't know, which code system I should use
     type.text = specimen_info.sample_material_type
     specimen.type = type
 
@@ -206,10 +210,10 @@ def create_files(data, smart_client):
     conditions = []
     specimens = []
     for record in data:
-        patient_url, condition_url, specimen_url = create_resources(record[0], record[1], record[2], smart_client)
+        patient_url, condition_url, specimen_urls = create_resources(record[0], record[1], record[2], smart_client)
         patients.append(patient_url)
         conditions.append(condition_url)
-        specimens.append(specimen_url)
+        specimens = specimen_urls
     file_patients_ids = open("patients_ids.txt", "w")
     file_conditions_ids = open("conditions_ids.txt", "w")
     file_specimens_ids = open("specimens_ids.txt", "w")
@@ -223,38 +227,5 @@ def create_files(data, smart_client):
     file_conditions_ids.close()
     file_specimens_ids.close()
 
-# https://www.geeksforgeeks.org/python-read-file-from-sibling-directory/
-def create_ids_lists():
-    # # gives the path of demo.py
-    # path = os.path.realpath(__file__)
-    #
-    # # gives the directory where demo.py exists
-    # dir = os.path.dirname(path)
-    #
-    # # replaces folder name
-    # dir = dir.replace('fhir_quality_checks', 'fhir_conversion')
-    #
-    # # changes the current directory to conversion folder
-    # os.chdir(dir)
 
-    patients_file = open('patients_ids.txt')
-    patients_ids = []
-    for id in patients_file.read().splitlines():
-        patients_ids.append(id)
-    patients_file.close()
-
-    specimens_file = open('specimens_ids.txt')
-    specimens_ids = []
-    for id in specimens_file.read().splitlines():
-        specimens_ids.append(id)
-    specimens_file.close()
-
-    conditions_file = open('conditions_ids.txt')
-    conditions_ids = []
-    for id in conditions_file.read().splitlines():
-        conditions_ids.append(id)
-    conditions_file.close()
-
-    return patients_ids, specimens_ids, conditions_ids
-
-#TODO smazání id filů
+# todo smazání zbytečných souborů a částí kódu
