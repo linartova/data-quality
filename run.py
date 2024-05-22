@@ -7,10 +7,27 @@ from visualization_ohdsi import create_report_ohdsi
 
 
 def work_with_arguments():
+    """
+    This function parses user input.
+
+    :return:
+        input_file_path, standard, fhir, ohdsi
+
+	    where
+	        input_file_path (string) : The path of input file.
+	        standard (string) : The chosen standard(s).
+	        fhir (string) : The url of FHIR server.
+	        ohdsi (Dict): {
+    		    "host": The database host.
+    		    "port": The database port.,
+    		    "user": The database user.
+                "password": The database password.
+                "database": The database.
+                "schema": The database schema.}
+    """
     parser = argparse.ArgumentParser()
 
     parser.add_argument("input_file", help="Mandatory file with data")
-    parser.add_argument("--save", "-s", action="store_false", help="Store or delete data")
     parser.add_argument("--fhir", "-f", action="store", help="Fhir server url")
     parser.add_argument("--ohdsi_host", "-host", action="store", help="OHDSI database credentials")
     parser.add_argument("--ohdsi_port", "-port", action="store", help="OHDSI database credentials")
@@ -18,14 +35,10 @@ def work_with_arguments():
     parser.add_argument("--ohdsi_password", "-pa", action="store", help="OHDSI database credentials")
     parser.add_argument("--ohdsi_database", "-d",action="store", help="OHDSI database credentials")
     parser.add_argument("--ohdsi_schema", "-sch", action="store", help="OHDSI database credentials")
-    parser.add_argument("--volume", "-v", action="store_false",
-                        help="Expected big data - static visualization.")
 
     args = parser.parse_args()
 
     input_file_path = args.input_file
-
-    save = args.save
 
     fhir = args.fhir
 
@@ -35,8 +48,6 @@ def work_with_arguments():
     ohdsi_password = args.ohdsi_password
     ohdsi_database = args.ohdsi_database
     ohdsi_schema = args.ohdsi_schema
-
-    volume = args.volume
 
     ohdsi = {
         "host": ohdsi_host,
@@ -72,11 +83,19 @@ def work_with_arguments():
     if not correct_ohdsi:
         standard = "fhir"
 
-    print(input_file_path, standard, save, fhir, ohdsi, volume)
-    return input_file_path, standard, save, fhir, ohdsi, volume
+    print(input_file_path, standard, fhir, ohdsi)
+    return input_file_path, standard, fhir, ohdsi
 
 
 def fhir(url, file_name):
+    """
+    Run FHIR data conversion and data quality control.
+
+    :param url: The url of FHIR server.
+    :param file_name: The path of input file.
+    :return:
+        None
+    """
     # server
     smart_client = provide_server_connection(url)
 
@@ -85,25 +104,39 @@ def fhir(url, file_name):
 
     # create report
     create_report_fhir(smart_client.server)
+    return None
 
 
 def omop(ohdsi, input_file):
+    """
+    Run OMOP CDM data conversion and data quality control.
+
+    :param ohdsi: {
+    		    "host": The database host.
+    		    "port": The database port.,
+    		    "user": The database user.
+                "password": The database password.
+                "database": The database.
+                "schema": The database schema.}
+    :param input_file: The path of input file.
+    :return:
+        None
+    """
     schema = ohdsi.pop("schema")
     load_data(ohdsi, input_file, schema)
 
     # create report
     con = psycopg2.connect(**ohdsi)
     create_report_ohdsi(con, schema)
+    return None
 
 
 if __name__ == '__main__':
-    # todo add mypy
-    # input_file_path, standard, save, url, ohdsi, volume = work_with_arguments()
-
-    # if standard == "fhir":
-    fhir("http://localhost:8080/fhir","ADOPT.xml")
-    # elif standard =="ohdsi":
-    #     omop(ohdsi, input_file_path)
-    # elif standard == "both":
-    #     fhir(fhir, input_file_path)
-    #     omop(ohdsi, input_file_path)
+    input_file_path, standard, url, ohdsi = work_with_arguments()
+    if standard == "fhir":
+        fhir(url, input_file_path)
+    elif standard =="ohdsi":
+         omop(ohdsi, input_file_path)
+    elif standard == "both":
+         fhir(url, input_file_path)
+         omop(ohdsi, input_file_path)

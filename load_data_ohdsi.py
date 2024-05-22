@@ -1,58 +1,19 @@
 from typing import List
-
 import psycopg2
 import xml.etree.ElementTree as ElementTree
 from collections import deque
 from datetime import datetime, timedelta
-
-
-class Patient:
-    def __init__(self, identifier, sex, year_of_birth):
-        self.gender_concept_id = sex
-        self.year_of_birth = year_of_birth
-        self.person_source_value = identifier
-
-
-class ObservationPeriod:
-    def __init__(self, start_date, end_date):
-        self.start_date = start_date
-        self.end_date = end_date
-
-
-class ConditionOccurrence:
-    def __init__(self, histopathology, date_diagnosis):
-        self.condition_concept_id = histopathology
-        self.condition_start_date = date_diagnosis
-        self.condition_source_value = histopathology
-
-
-class Specimen:
-    def __init__(self, sample_material_type, year_of_sample_connection, sample_id):
-        self.specimen_concept_id = sample_material_type
-        self.specimen_date = year_of_sample_connection
-        self.specimen_source_id = sample_id
-        self.specimen_source_value = sample_material_type
-
-
-class DrugExposure:
-    def __init__(self, drug_concept_id, drug_exposure_start_date, drug_exposure_end_date, drug_source_value):
-        self.drug_concept_id = drug_concept_id
-        self.drug_exposure_start_date = drug_exposure_start_date
-        self.drug_exposure_start_datetime = drug_exposure_start_date
-        self.drug_exposure_end_date = drug_exposure_end_date
-        self.drug_exposure_end_datetime = drug_exposure_end_date
-        self.drug_source_value = drug_source_value
-
-
-class ProcedureOccurrence:
-    def __init__(self, procedure_concept_id, procedure_date, procedure_source_value):
-        self.procedure_concept_id = procedure_concept_id
-        self.procedure_date = procedure_date
-        self.procedure_source_value = procedure_source_value
-
+from ohdsi_classes import *
 
 
 def read_xml_and_parse(file_name):
+    """
+    Parse input file and proccess data.
+
+    :param file_name: The path of input file.
+    :return:
+        Data prepared in the list of instances of classes from ohdsi_classes.py
+    """
     tree = ElementTree.parse(file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
@@ -99,8 +60,16 @@ def read_xml_and_parse(file_name):
     return result
 
 
-# todo napsat docs o tom datu diagnoz
 def find_diagnostic_procedures(namespace, form, diagnosis):
+    """
+    Find a values of diagnostic procedures.
+
+    :param namespace: The namespace of file.
+    :param form: XML element, where Diagnosis procedure can be stored.
+    :param diagnosis: Date of diagnosis used as diagnostic procedure.
+    :return:
+        List of instances of class ProcedureOccurrence representing diagnostic procedures.
+    """
     result = []
     # liver_imaging
     liver_imaging = form.find(namespace + "Dataelement_61_5").text
@@ -134,6 +103,14 @@ def find_diagnostic_procedures(namespace, form, diagnosis):
 
 
 def surgery_mapping(primary_surgery, secondary_surgery):
+    """
+    Map a values of surgery.
+
+    :param primary_surgery: Surgery attribute.
+    :param secondary_surgery: Another surgery attribute.
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     code_mapping = {"Abdomino-perineal resection": 4144721,
                     "Anterior resection of rectum": 4166855,
                     "Endo-rectal tumor resection": None,
@@ -153,6 +130,14 @@ def surgery_mapping(primary_surgery, secondary_surgery):
 
 
 def find_specimens(namespace, events):
+    """
+    Create a list of all specimens of one patient.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Specimens can be stored.
+    :return:
+        List of all specimens.
+    """
     result = []
     for event in events.findall(namespace + "Event"):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
@@ -166,8 +151,16 @@ def find_specimens(namespace, events):
     return result
 
 
-# todo udělat docs o mapování drug_source_value
 def find_drug_exposures(namespace, events, diagnosis):
+    """
+    Create a list of all Drug Exposures of one patient.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Specimens can be stored.
+    :param diagnosis: Date of diagnosis.
+    :return:
+        List of all Drug Exposures.
+    """
     result = []
     for event in events:
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Pharmacotherapy":
@@ -194,16 +187,20 @@ def find_drug_exposures(namespace, events, diagnosis):
     return result
 
 
-# todo to že je kdekoliv v tomto skriptu ".text" aniž bych ověřovala, zda to není None,
-# todo je náběh na spoustu errorů
-# todo udělat tady docs ohledně targeted therapy
 def find_procedures(namespace, events, initial_diagnosis):
+    """
+    Create a list of all Drug Exposures of one patient.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Specimens can be stored.
+    :param initial_diagnosis: Date of initial diagnosis.
+    :return:
+        List of all Procedures.
+    """
     result = []
     for event in events.findall(namespace + "Event"):
-        if event.attrib.get("eventtype") == "Diagnostic examination":
-            result.append(ProcedureOccurrence(4249893, None, "colonoscopy"))
 
-        elif event.attrib.get("eventtype") == "Surgery":
+        if event.attrib.get("eventtype") == "Surgery":
             primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_49_1").text
             secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
@@ -231,6 +228,14 @@ def find_procedures(namespace, events, initial_diagnosis):
 
 
 def find_histopathology(namespace, events):
+    """
+    Find a localization of primary tumor in form Histopathology.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Histopathology can be stored.
+    :return:
+        The element with localization of primary tumor.
+    """
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Histopathology":
             return event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
@@ -238,6 +243,14 @@ def find_histopathology(namespace, events):
 
 
 def find_observation_start_date(namespace, events):
+    """
+    Find an Observation Start Date as the date of oldest sample.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Histopathology can be stored.
+    :return:
+        The observation_start_date.
+    """
     year_of_sample_collection = []
     for event in events.findall(namespace + "Event"):
         if "eventtype" in event.attrib:
@@ -249,6 +262,15 @@ def find_observation_start_date(namespace, events):
 
 
 def retrieve_max_ids(cursor, schema, table):
+    """
+    Find max id in database.
+
+    :param cursor: Cursor of database connection.
+    :param schema: Used schema.
+    :param table: In which table are we looking for an ID.
+    :return:
+        The max ID.
+    """
     cursor.execute("SELECT MAX(" + table + "_" + "id) FROM " + schema + "." + table)
     highest_id = cursor.fetchone()[0]
     if highest_id is None:
@@ -258,7 +280,16 @@ def retrieve_max_ids(cursor, schema, table):
     return ids
 
 
-def put_data_into_right_types(data, cursor):
+def put_data_into_right_types(data, schema, cursor):
+    """
+    Modify data to be prepared in the INSERT command.
+
+    :param data: Data prepared in the list of instances of classes from ohdsi_classes.py
+    :param schema: Used schema.
+    :param cursor: Cursor of database connection.
+    :return:
+        The data.
+    """
     result = []
     person_ids = retrieve_max_ids(cursor, schema, "person")
     observation_ids = retrieve_max_ids(cursor, schema, "observation_period")
@@ -282,6 +313,14 @@ def put_data_into_right_types(data, cursor):
 
 
 def create_person_data(person: Patient, ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param person: Person data.
+    :param ids: ID in database.
+    :return:
+        Person data prepared for INSERT command.
+    """
     if person.gender_concept_id == "male":
         gender = 8507
     elif person.gender_concept_id == "female":
@@ -293,11 +332,26 @@ def create_person_data(person: Patient, ids):
 
 
 def create_observation_period_data(observation: ObservationPeriod, ids, person_ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param observation: Observation Period data.
+    :param ids: ID in database.
+    :return:
+        Observation Period data prepared for INSERT command.
+    """
     return [ids, person_ids, observation.start_date,
             datetime.strptime(observation.end_date, '%Y-%m-%d').date(), 32809]
 
 
 def condition_mapping_codes(condition):
+    """
+    Map a values of condition codes.
+
+    :param condition: Condition values.
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     codes_mapping = {"C18.0": 432837,
                      "C18.1": 433143,
                      "C18.2": 4247719,
@@ -315,6 +369,13 @@ def condition_mapping_codes(condition):
 
 
 def condition_mapping_names(condition):
+    """
+    Map a values of condition names.
+
+    :param condition: Condition values.
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     codes_mapping = {"C18.0": "C 18.0 - Caecum",
                      "C18.1": "C 18.1 - Appendix",
                      "C18.2": "C 18.2 - Ascending colon",
@@ -332,12 +393,27 @@ def condition_mapping_names(condition):
 
 
 def create_condition_occurrences_data(condition: ConditionOccurrence, ids, person_ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param condition: Condition Occurrence data.
+    :param ids: ID in database.
+    :return:
+        Condition Occurrence data prepared for INSERT command.
+    """
     return [ids, person_ids, condition_mapping_codes(condition.condition_concept_id),
             datetime.strptime(condition.condition_start_date, '%Y-%m-%d').date(), 32809,
             condition_mapping_names(condition.condition_source_value)]
 
 
 def specimen_mapping_numbers(specimen):
+    """
+    Map a values of specimen numbers.
+
+    :param specimen: Specimen values.
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     if specimen == "Healthy colon tissue":
         return 4134449
     elif specimen == "Tumor":
@@ -347,6 +423,13 @@ def specimen_mapping_numbers(specimen):
 
 
 def specimen_mapping_names(specimen):
+    """
+    Map a values of specimen names.
+
+    :param specimen: Specimen values.
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     if specimen == "Healthy colon tissue":
         return "Healthy colon tissue"
     elif specimen == "Tumor":
@@ -356,6 +439,15 @@ def specimen_mapping_names(specimen):
 
 
 def create_specimens(specimens: List[Specimen], ids, person_ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param specimens: Specimen data.
+    :param ids: ID in database.
+    :param person_ids: Foreign key of Person.
+    :return:
+        Specimen data prepared for INSERT command.
+    """
     result = []
     for specimen in specimens:
         result.append([ids, person_ids, specimen_mapping_numbers(specimen.specimen_concept_id), 32809,
@@ -366,6 +458,13 @@ def create_specimens(specimens: List[Specimen], ids, person_ids):
 
 
 def drug_exposure_mapping(drug_concept_id):
+    """
+    Map a values of drug exposure
+
+    :param drug_concept_id: drug concept id
+    :return:
+        Values which could be stored in OMOP CDM.
+    """
     drug_mapping = {"5-FU": 40042274,
                     "Capecitabine": 40095743,
                     "Oxaliplatin": 35603923,
@@ -378,6 +477,15 @@ def drug_exposure_mapping(drug_concept_id):
 
 
 def create_drug_exposures(drug_exposures: List[DrugExposure], ids, person_ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param drug_exposures: Drug Exposure data.
+    :param ids: ID in database.
+    :param person_ids: Foreign key of Person.
+    :return:
+        Drug exposure data prepared for INSERT command.
+    """
     result = []
     for drug_exposure in drug_exposures:
         if drug_exposure.drug_concept_id is not None:
@@ -393,6 +501,15 @@ def create_drug_exposures(drug_exposures: List[DrugExposure], ids, person_ids):
 
 
 def create_procedure_occurrences(procedures: List[ProcedureOccurrence], ids, persons_ids):
+    """
+    Helper function for put_data_into_right_types function.
+
+    :param procedures: Procedure Occurrence data.
+    :param ids: ID in database.
+    :param persons_ids: Foreign key of Person.
+    :return:
+        Procedure occurrence data prepared for INSERT command.
+    """
     result = []
     for procedure in procedures:
         result.append([ids, persons_ids, 32809, procedure.procedure_concept_id, procedure.procedure_date,
@@ -402,6 +519,16 @@ def create_procedure_occurrences(procedures: List[ProcedureOccurrence], ids, per
 
 
 def insert_specimen(specimens, cursor, insert, values):
+    """
+    Helper function for insert_data.
+
+    :param specimens: The data in form ready for insert into OMOP CDM.
+    :param cursor: Cursor of database connection.
+    :param insert: Part of insert command.
+    :param values: Part of insert command.
+    :return:
+        None.
+    """
     for specimen in specimens:
         specimen = list(specimen)
         command = insert + "specimen (specimen_id, person_id, specimen_concept_id, " \
@@ -410,6 +537,16 @@ def insert_specimen(specimens, cursor, insert, values):
         cursor.execute(command, specimen)
 
 def insert_drug_exposure(drug_exposures, cursor, insert, values):
+    """
+    Helper function for insert_data.
+
+    :param drug_exposures: The data in form ready for insert into OMOP CDM.
+    :param cursor: Cursor of database connection.
+    :param insert: Part of insert command.
+    :param values: Part of insert command.
+    :return:
+        None.
+    """
     for drug_exposure in drug_exposures:
         drug_exposure = list(drug_exposure)
         command = insert + "drug_exposure (drug_exposure_id, person_id, drug_concept_id, " \
@@ -420,6 +557,16 @@ def insert_drug_exposure(drug_exposures, cursor, insert, values):
 
 
 def insert_procedure_occurrence(procedure_occurrences, cursor, insert, values):
+    """
+    Helper function for insert_data.
+
+    :param procedure_occurrences: The data in form ready for insert into OMOP CDM.
+    :param cursor: Cursor of database connection.
+    :param insert: Part of insert command.
+    :param values: Part of insert command.
+    :return:
+        None
+    """
     for procedure_occurrence in procedure_occurrences:
         procedure_occurrence = list(procedure_occurrence)
         command = insert + "procedure_occurrence (procedure_occurrence_id, person_id, procedure_type_concept_id, " \
@@ -429,6 +576,16 @@ def insert_procedure_occurrence(procedure_occurrences, cursor, insert, values):
 
 
 def insert_data(prepared_data, cursor, conn, schema):
+    """
+    Insert data into database.
+
+    :param prepared_data: The data in form ready for insert into OMOP CDM.
+    :param cursor: Cursor of database connection.
+    :param conn: Database connection.
+    :param schema: Used schema.
+    :return:
+        None
+    """
     try:
         insert = "INSERT INTO " + schema + "."
         values = "VALUES"
@@ -471,16 +628,22 @@ def insert_data(prepared_data, cursor, conn, schema):
 
 
 def load_data(params, input_file, schema):
+    """
+    Load data from input_file into database with attached params.
+
+    :param params: Params of database.
+    :param input_file: The path of input file.
+    :param schema: The schema we are working with.
+    :return:
+        None
+    """
     try:
         # open connection
         conn = psycopg2.connect(**params)
         cursor = conn.cursor()
 
-        # drop_tables(cursor)
-
-        data = put_data_into_right_types(read_xml_and_parse(input_file), cursor)
+        data = put_data_into_right_types(read_xml_and_parse(input_file), schema, cursor)
         insert_data(data, cursor, conn, schema)
-        # print_tables(cursor)
 
         # close connection
         cursor.close()

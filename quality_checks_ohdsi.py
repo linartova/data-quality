@@ -1,10 +1,18 @@
 from _datetime import datetime
 import pandas as pd
 import plotly.express as px
-import psycopg2
 
 
 def create_df_omop(con, table_name, schema):
+    """
+    Universal function for creation of data frames from OMOP CDM tables.
+
+    :param con: Connection to database.
+    :param table_name: Processed table.
+    :param schema: Schema in database.
+    :return:
+        Data frame from OMOP CDM table.
+    """
     table = schema + "." + table_name
     sql_query = pd.read_sql_query("SELECT * FROM " + table, con)
     if table_name == "person":
@@ -36,6 +44,13 @@ def create_df_omop(con, table_name, schema):
 
 
 def completeness(df):
+    """
+    Data quality check for completeness.
+
+    :param df: Input data frame
+    :return:
+        Graph of completeness.
+    """
     name = df.columns[0][:-3]
     missing_values = pd.isnull(df).sum()
     fig = px.bar(missing_values)
@@ -46,6 +61,13 @@ def completeness(df):
 
 
 def uniqueness(df):
+    """
+    Data quality check for uniqueness.
+
+    :param df: Input data frame
+    :return:
+        Graph of uniqueness.
+    """
     df = df.copy()
     id_column = df.columns[0]
     if id_column != "person_id":
@@ -67,30 +89,19 @@ def uniqueness(df):
     return fig
 
 
-# todo original checks:
-
-# todo argumentace u nepoužitých checků
-# todo dokumentace, kde bude původní warning a názvy starých a nových hodnot
-
-# místo inner joinu použít left join
-# potom spočítat df shape
-# odstranit null hodnoty
-# name convensions bych udělala do 5 slov, vystihnout myšlenku nového checku, možná inspirace starým
-# promyslet ty grafy - už součást vizualizace
-# ještě předtím dodělat věci z ccdc_report_generator.R
-# otestovat na nových datech
-# vizualizace
-
-# todo zkontrolovat, že se dropuje null jen z toho nutného column
-# todo zkrátit počítání null values
-# todo u těch reports prostě zkontrolovat, jestli jsou vždycky v té tabulce kontrolovány všechny hodnoty
-# todo u reports druhou iteraci kontroly
-# todo forced values by constrains
-
-
+# original checks:
 # warnings
 # 1
 def observation_end_precedes_condition_start(cdf, odf):
+    """
+    Warning # 1
+    Original warning type: "Vital check date precedes initial diagnosis date"
+
+    :param cdf: Condition Occurrence data frame.
+    :param odf: Observation Period data frame.
+    :return:
+        Graph of result.
+    """
     merged_df = pd.merge(cdf, odf, how="left", on="person_id")
     count_of_rows = merged_df.shape[0]
     merged_df = merged_df.dropna()
@@ -115,6 +126,15 @@ def observation_end_precedes_condition_start(cdf, odf):
 
 # 2
 def observation_end_equals_condition_start(cdf, odf):
+    """
+    Warning # 2
+    Original warning type: "Vital check date is equal to initial diagnosis date"
+
+    :param cdf: Condition Occurrence data frame.
+    :param odf: Observation Period data frame.
+    :return:
+        Graph of result.
+    """
     merged_df = pd.merge(cdf, odf, how="left", on="person_id")
     count_of_rows = merged_df.shape[0]
     merged_df = merged_df.dropna()
@@ -138,6 +158,15 @@ def observation_end_equals_condition_start(cdf, odf):
 
 # 4
 def too_young_person(pdf, cdf):
+    """
+    Warning # 4
+    Original warning type: "Suspiciously young patient"
+
+    :param pdf: Person data frame.
+    :param cdf: Condition Occurrence data frame.
+    :return:
+        Graph of result.
+    """
     merged_df = pd.merge(pdf, cdf, how="left", on="person_id")
     count_of_rows = merged_df.shape[0]
     merged_df.dropna()
@@ -160,6 +189,14 @@ def too_young_person(pdf, cdf):
 
 # 7
 def observation_end_in_the_future(odf):
+    """
+    Warning # 7
+    Original warning type: "Vital status timestamp is in the future"
+
+    :param odf: Observation Period data frame.
+    :return:
+        Graph of result.
+    """
     odf_copy = odf.copy()
     count_of_rows = odf_copy.shape[0]
     odf_copy.dropna()
@@ -182,6 +219,14 @@ def observation_end_in_the_future(odf):
 
 # 8
 def condition_start_in_the_future(cdf):
+    """
+    Warning # 8
+    Original warning type: "Initial diagnosis date is in the future"
+
+    :param cdf: Condition Occurrence data frame.
+    :return:
+        Graph of result.
+    """
     cdf_copy = cdf.copy()
     count_of_rows = cdf_copy.shape[0]
     now = datetime.now().date()
@@ -203,6 +248,14 @@ def condition_start_in_the_future(cdf):
 
 # 9
 def missing_drug_exposure_info(ddf):
+    """
+    Warning # 9
+    Original warning type: "Pharmacotherapy scheme description is missing while pharmacotherapy scheme is Other"
+
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graph of result.
+    """
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
 
@@ -223,6 +276,16 @@ def missing_drug_exposure_info(ddf):
 
 # 10 + 11
 def sus_pharma(ddf):
+    """
+    Warning # 10 + 11
+    Original warning type:
+    "Suspicious description of pharmacotherapy"
+    "Missing specification of used substances in pharmacotherapy description"
+
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graph of result.
+    """
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
     ddf_copy["sus_pharma"] = (ddf_copy["drug_source_value"].isin(["No pharmacotherapy",
@@ -245,6 +308,14 @@ def sus_pharma(ddf):
 
 # 12
 def sus_pharma_other(ddf):
+    """
+    Warning # 12
+    Original warning type: "Suspicious characters or words in description of pharmacotherapy"
+
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graph of result.
+    """
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
     ddf_copy["sus_pharma"] = (ddf_copy["drug_source_value"].isin(["%-FU", "andLeucovorin"]))
@@ -262,13 +333,16 @@ def sus_pharma_other(ddf):
     return fig
 
 
-# todo 15
-def getValidSurgeries():
-    pass
-
-
 # 16
 def drug_end_before_start(ddf):
+    """
+    Warning # 16
+    Original warning type: "Negative event (treatment/response) duration: end time is before start time"
+
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graph of result.
+    """
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
     ddf_copy = ddf_copy.dropna()
@@ -290,6 +364,16 @@ def drug_end_before_start(ddf):
 
 # 21
 def therapy_start_before_diagnosis(cdf, ddf, prdf):
+    """
+    Warning # 21
+    Original warning type: "Start of therapy is before diagnosis"
+
+    :param cdf: Condition Occurrence data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Two graphs of result.
+    """
     merged_ddf = pd.merge(cdf, ddf, how="left", on="person_id")
     count_of_rows = ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -331,6 +415,15 @@ def therapy_start_before_diagnosis(cdf, ddf, prdf):
 
 # 22
 def treatment_start_in_the_future(ddf, prdf):
+    """
+    Warning # 22
+    Original warning type: "Start of treatment is in the future"
+
+    :param prdf: Procedure Occurrence data frame.
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Two graphs of result.
+    """
     current_date = datetime.now().date()
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
@@ -369,6 +462,14 @@ def treatment_start_in_the_future(ddf, prdf):
 
 # 23
 def drug_exposure_end_in_the_future(ddf):
+    """
+    Warning # 23
+    Original warning type: "End of treatment is in the future"
+
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graphs of result.
+    """
     current_date = datetime.now().date()
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
@@ -390,6 +491,16 @@ def drug_exposure_end_in_the_future(ddf):
 
 # 24
 def sus_early_pharma(cdf, ddf):
+    """
+    Warning # 24
+    Original warning type:
+    "Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)"
+
+    :param cdf: Condition Occurrence data frame.
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(cdf, ddf, how="left", on="person_id")
     count_of_rows = ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -414,6 +525,16 @@ def sus_early_pharma(cdf, ddf):
 
 # 25
 def sus_short_pharma(cdf, ddf):
+    """
+    Warning # 25
+    Original warning type:
+    "Suspiciously short pharma therapy - less than 1 week (may be false positive)"
+
+    :param cdf: Condition Occurrence data frame.
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(cdf, ddf, how="left", on="person_id")
     count_of_rows = ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -433,10 +554,18 @@ def sus_short_pharma(cdf, ddf):
     fig_dff = px.bar(dff, x='Records', y='Count')
     return fig_dff
 
-# todo reports
+# reports
 
 # 1 + 2
 def missing_specimen_date(pdf, sdf):
+    """
+    Report # 1 + 2
+
+    :param pdf: Person data frame.
+    :param sdf: Specimen data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -462,6 +591,14 @@ def missing_specimen_date(pdf, sdf):
 
 # 3
 def patients_without_specimen_source_id(pdf, sdf):
+    """
+    Report # 3
+
+    :param pdf: Person data frame.
+    :param sdf: Specimen data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -485,6 +622,14 @@ def patients_without_specimen_source_id(pdf, sdf):
 
 # 5
 def patients_without_specimen_source_value_concept_id(pdf, sdf):
+    """
+    Report # 5
+
+    :param pdf: Person data frame.
+    :param sdf: Specimen data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -513,6 +658,14 @@ def patients_without_specimen_source_value_concept_id(pdf, sdf):
 
 # 6
 def patients_without_condition_values(pdf, cdf):
+    """
+    Report # 6
+
+    :param pdf: Person data frame.
+    :param cdf: Condition Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     merged_ddf = pd.merge(pdf, cdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
     merged_ddf = merged_ddf.dropna()
@@ -552,6 +705,14 @@ def patients_without_condition_values(pdf, cdf):
 
 # 7
 def patients_without_surgery_values(pdf, prdf):
+    """
+    Report # 7
+
+    :param pdf: Person data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     surgeries = prdf[~prdf['procedure_source_value'].isin(["liver imaging", "CT",
                                                            "colonoscopy", "lung imaging",
@@ -601,19 +762,14 @@ def patients_without_surgery_values(pdf, prdf):
 
 # 8
 def missing_patient_and_diagnostic_values(pdf, prdf):
-    # check patient values
+    """
+    Report # 8
 
-    # then check if something from Colonoscopy,
-    # CT, Liver_imaging, Lung_imaging, MRI is missing for each patient
-    # "liver imaging", "CT", "colonoscopy", "lung imaging", "MRI"
-
-    # vyfiltrovat diagnozu z prf
-    # left join pdf + prdf
-    # u pacientů, kteří budou mít v procedure_source_value None chybí tato diagnóza
-    # vyfiltrovat je a dát do csv a spočítat do grafu
-
-    # udělá se jeden velký histogram
-
+    :param pdf: Person data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
 
     # "gender_concept_id"
@@ -706,6 +862,14 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
 
 # 9
 def missing_targeted_therapy_values(pdf, prdf):
+    """
+    Report # 9
+
+    :param pdf: Person data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     surgeries = prdf[prdf['procedure_source_value'].isin(["Targeted therapy"])]
 
@@ -754,6 +918,14 @@ def missing_targeted_therapy_values(pdf, prdf):
 
 # 10
 def missing_pharmacotherapy_value(pdf, ddf):
+    """
+    Report # 10
+
+    :param pdf: Person data frame.
+    :param ddf: Drug Exposure data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     merged_ddf = pd.merge(pdf, ddf, how="left", on="person_id")
 
@@ -819,6 +991,14 @@ def missing_pharmacotherapy_value(pdf, ddf):
 
 # 11
 def missing_radiation_therapy_values(pdf, prdf):
+    """
+    Report # 11
+
+    :param pdf: Person data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     surgeries = prdf[prdf['procedure_source_value'].isin(["Radiation therapy"])]
 
@@ -877,6 +1057,18 @@ def missing_radiation_therapy_values(pdf, prdf):
 
 # 35 histogram with count of records in tables
 def counts_of_records(pdf, odf, cdf, sdf, ddf, prdf):
+    """
+    Report # 35
+
+    :param pdf: Person data frame.
+    :param odf: Observation Period data frame.
+    :param cdf: Condition Occurrence data frame.
+    :param sdf: Specimen data frame.
+    :param ddf: Drug Exposure data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     observations = odf.shape[0]
     conditions = cdf.shape[0]
@@ -911,6 +1103,14 @@ def counts_of_records(pdf, odf, cdf, sdf, ddf, prdf):
 
 # 41
 def get_patients_without_surgery(pdf, prdf):
+    """
+    Report # 41
+
+    :param pdf: Person data frame.
+    :param prdf: Procedure Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
     patients = pdf.shape[0]
     surgeries = prdf[~prdf['procedure_source_value'].isin(["liver imaging", "CT",
                                                            "colonoscopy", "lung imaging",

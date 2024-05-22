@@ -10,28 +10,17 @@ from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.specimen import SpecimenCollection
 from fhirclient.models.identifier import Identifier
 from datetime import date
-
-
-class Patient:
-    def __init__(self, identifier, sex, age):
-        self.identifier = identifier
-        self.sex = sex
-        self.age = age
-
-
-class Condition:
-    def __init__(self, histopathology, date_diagnosis):
-        self.date_diagnosis = date_diagnosis
-        self.histopathology = histopathology
-
-
-class Specimen:
-    def __init__(self, sample_material_type, year_of_sample_connection):
-        self.year_of_sample_connection = year_of_sample_connection
-        self.sample_material_type = sample_material_type
+from fhir_classes import *
 
 
 def provide_server_connection(url):
+    """
+    Connects to FHIR server.
+
+    :param url: The url of FHIR server.
+    :return:
+        FHIR client.
+    """
     settings = {
         'app_id': 'my_web_app',
         'api_base': url
@@ -45,6 +34,14 @@ def provide_server_connection(url):
 
 
 def read_xml_and_create_resources(file_name, smart):
+    """
+    Parse input file, process data, store them on FHIR server.
+
+    :param file_name: The path of input file.
+    :param smart: FHIR client.
+    :return:
+        None
+    """
     tree = ElementTree.parse(file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
@@ -73,9 +70,17 @@ def read_xml_and_create_resources(file_name, smart):
                            Condition(histopathology.text, date_diagnosis.text),
                            specimens])
     create_files(result, smart)
-
+    return None
 
 def find_specimens(namespace, events):
+    """
+    Create a list of all specimens of one patient.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Specimens can be stored.
+    :return:
+        List of all specimens.
+    """
     result = []
     for event in events.findall(namespace + "Event"):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
@@ -89,6 +94,14 @@ def find_specimens(namespace, events):
 
 
 def find_histopathology(namespace, events):
+    """
+    Find a localization of primary tumor in form Histopathology.
+
+    :param namespace: The namespace of file.
+    :param events: XML element, where Histopathology can be stored.
+    :return:
+        The element with localization of primary tumor.
+    """
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Histopathology":
             return event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
@@ -96,6 +109,18 @@ def find_histopathology(namespace, events):
 
 
 def create_resources(patient, condition, specimens, smart_client):
+    """
+    Create and store resources for one patient on FHIR server.
+
+    :param patient: The instance of class Patient.
+    :param condition: The instance of class Condition.
+    :param specimens: List of instances of class Specimen.
+    :param smart_client: The FHIR client.
+    :return:
+        patient_url: The url of Resource Patient.
+        condition_url: The url of Resource Condition.
+        specimen_urls: The urls of Resources Specimen
+    """
     patient_url = create_patient(patient, smart_client)
     condition_url = create_condition(condition, patient_url, smart_client)
     specimen_urls = []
@@ -105,6 +130,14 @@ def create_resources(patient, condition, specimens, smart_client):
 
 
 def create_patient(patient_info, smart_client):
+    """
+    Create and store the Resource Patient on FHIR server.
+
+    :param patient_info: The instance of class Patient.
+    :param smart_client: The FHIR client.
+    :return:
+        The url of Resource Patient.
+    """
     patient = p.Patient()
     year_of_birth = str(date.today().year - int(patient_info.age))
     patient.birthDate = FHIRDate(year_of_birth)
@@ -119,6 +152,15 @@ def create_patient(patient_info, smart_client):
 
 
 def create_condition(condition_info, patient_id, smart_client):
+    """
+    Create and store the Resource Condition on FHIR server.
+
+    :param condition_info: The instance of class Condition.
+    :param patient_id: The url of relevant Resource Patient.
+    :param smart_client: The FHIR client.
+    :return:
+        The url of Resource Condition.
+    """
     condition = c.Condition()
     condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
@@ -177,6 +219,15 @@ def create_condition(condition_info, patient_id, smart_client):
 
 
 def create_specimen(patient_id, specimen_info, smart_client):
+    """
+    Create and store the Resource Specimen on FHIR server.
+
+    :param patient_id: The url of relevant Resource Patient.
+    :param specimen_info: The instance of class Specimen.
+    :param smart_client: The FHIR client.
+    :return:
+        The url of Resource Specimen.
+    """
     specimen = s.Specimen()
 
     # collection collected
@@ -199,12 +250,28 @@ def create_specimen(patient_id, specimen_info, smart_client):
 
 
 def store_resources(smart_client, file, type):
+    """
+    Store resources on FHIR server.
+
+    :param smart_client: The FHIR client.
+    :param file: FHIR model, precursor of FHIR json.
+    :param type: Type of Resource.
+    :return:
+    """
     server = smart_client.server
     resource = file.as_json()
     return server.post_json(path=type, resource_json=resource)
 
 
 def create_files(data, smart_client):
+    """
+    Create files with Resurces IDs for further processing.
+
+    :param data: Data prepared in the list of instances of classes: Patient, Condition, Specimen.
+    :param smart_client: The FHIR client.
+    :return:
+        None
+    """
     # resources
     patients = []
     conditions = []
@@ -226,6 +293,4 @@ def create_files(data, smart_client):
     file_patients_ids.close()
     file_conditions_ids.close()
     file_specimens_ids.close()
-
-
-# todo smazání zbytečných souborů a částí kódu
+    return None

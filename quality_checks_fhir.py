@@ -3,8 +3,14 @@ import plotly.express as px
 from _datetime import datetime
 
 
-# todo zkontrolovat, že každý check vyexportuje csv se sus records
-def create_patient_data_frame( server):
+def create_patient_data_frame(server):
+    """
+    Create data frame from Resource Patient.
+
+    :param server: FHIR server.
+    :return:
+        Patient data frame.
+    """
     dicts = []
     with open('patients_ids.txt', 'r') as ids:
         for id in ids:
@@ -22,6 +28,13 @@ def create_patient_data_frame( server):
 
 
 def create_specimen_data_frame(server):
+    """
+    Create data frame from Resource Specimen.
+
+    :param server: FHIR server.
+    :return:
+        Specimen data frame.
+    """
     dicts = []
     with open('specimens_ids.txt', 'r') as ids:
         for id in ids:
@@ -46,6 +59,13 @@ def create_specimen_data_frame(server):
 
 
 def create_condition_data_frame(server):
+    """
+    Create data frame from Resource Condition.
+
+    :param server: FHIR server.
+    :return:
+        Condition data frame.
+    """
     dicts = []
     with open('conditions_ids.txt', 'r') as ids:
         for id in ids:
@@ -76,20 +96,14 @@ def create_condition_data_frame(server):
     return pd.DataFrame(dicts)
 
 
-def create_df(patients_id, specimens_id, conditions_id, server):
-    patients_df = create_patient_data_frame(server)
-    patients_df = patients_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
-    specimen_df = create_specimen_data_frame(server)
-    specimen_df = specimen_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
-    condition_df = create_condition_data_frame(server)
-    condition_df = condition_df.drop(columns=["resourceType", "id", "meta_versionId", "meta_lastUpdated"])
-
-    #return  wf1.completeness(patients_df)
-    return patients_df, specimen_df, condition_df
-
-
-
 def completeness(df):
+    """
+    Data quality check for completeness.
+
+    :param df: Input data frame
+    :return:
+        Graph of completeness.
+    """
     missing_values = pd.isnull(df).sum()
     fig = px.scatter(missing_values)
     fig.update_layout(xaxis_title='count of missing values', yaxis_title='attribute', title="Missing values",
@@ -98,6 +112,14 @@ def completeness(df):
 
 
 def uniqueness(df, name):
+    """
+    Data quality check for uniqueness.
+
+    :param df: Input data frame
+    :param name: Name of processed data frame.
+    :return:
+        Graph of uniqueness.
+    """
     df = df.copy()
     count_of_rows = df.shape[0]
     df.drop(columns="meta_versionId", inplace=True)
@@ -112,10 +134,17 @@ def uniqueness(df, name):
     dff = pd.DataFrame(result)
     fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values')
 
-    df.to_csv("reports/omop/uniqueness" + name + ".csv", index=False)
+    df.to_csv("reports/fhir/uniqueness" + name + ".csv", index=False)
     return fig
 
 def conformance_patient(df):
+    """
+    Data quality check for conformance of Resource Patient.
+
+    :param df: Patient data frame.
+    :return:
+        Graph of conformance.
+    """
     # gender
     count_of_rows = df.shape[0]
     gender_check_count = df["gender"].isin(["male", "female", "other", "unknown"]).sum()
@@ -136,6 +165,13 @@ def conformance_patient(df):
 
 
 def conformance_condition(df):
+    """
+    Data quality check for conformance of Resource Conformance.
+
+    :param df: Conformance data frame.
+    :return:
+        Graph of conformance.
+    """
     count_of_rows = df.shape[0]
 
     # recordedDate
@@ -210,6 +246,13 @@ def conformance_condition(df):
 
 
 def conformance_specimen(df):
+    """
+    Data quality check for conformance of Resource Specimen.
+
+    :param df: Specimen data frame.
+    :return:
+        Graph of conformance.
+    """
     count_of_rows = df.shape[0]
 
     # type text
@@ -231,6 +274,14 @@ def conformance_specimen(df):
 
 
 def conformance_relational(df, server):
+    """
+    Data quality check for relational conformance of Resource.
+
+    :param df: Data frame.
+    :param server: FHIR server.
+    :return:
+        Graph of relational conformance.
+    """
     count_of_rows = df.shape[0]
     count_of_invalid_references = 0
 
@@ -251,8 +302,15 @@ def conformance_relational(df, server):
     return fig
 
 
-
 def get_birthDay(pdf, subject_reference):
+    """
+    Helper function for conformance_computational.
+
+    :param pdf: Patient data frame.
+    :param subject_reference: Patient id.
+    :return:
+        Birthday of Patient.
+    """
     subject_reference_split = subject_reference.split("/")
     patient_id = None
     if len(subject_reference_split) == 2:
@@ -267,6 +325,15 @@ def get_birthDay(pdf, subject_reference):
 
 
 def conformance_computational(pdf, sdf, cdf):
+    """
+    Data quality check for computational conformance
+
+    :param pdf: Patient data frame.
+    :param sdf: Specimen data frame.
+    :param cdf: Condition data frame.
+    :return:
+        Graph of computational conformance.
+    """
     count_invalid_collection_collectedDateTime = 0
     for index in sdf.index:
         collection_collectedDateTime = sdf["collection_collectedDateTime"][index]
@@ -282,7 +349,6 @@ def conformance_computational(pdf, sdf, cdf):
         onsetDateTime = cdf["onsetDateTime"][index]
         recordedDate = cdf["recordedDate"][index]
 
-        # todo dodělat i jinde
         if index < len(sdf.index):
             subject_reference = sdf['subject_reference'][index]
             birthDay = get_birthDay(pdf, subject_reference)
@@ -310,6 +376,15 @@ def conformance_computational(pdf, sdf, cdf):
 # warnings
 # 4
 def age_at_primary_diagnosis(pdf, cdf):
+    """
+    Warning # 4
+    Original warning type: "Suspiciously young patient"
+
+    :param pdf: Patient data frame.
+    :param cdf: Condition data frame.
+    :return:
+        Graph of result.
+    """
     cdf_copy = cdf.copy()
     cdf_copy["patient_id"] = cdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
     pdf_copy = pdf.copy()
@@ -323,7 +398,7 @@ def age_at_primary_diagnosis(pdf, cdf):
     incorrect_df.to_csv('reports/fhir/too_young_patients.csv', index=False)
     result = {
         "Records": ["Number of records", "too_young_patient"],
-        "Count": [count_of_rows, count_of_rows - incorrect_count]
+        "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
@@ -332,6 +407,14 @@ def age_at_primary_diagnosis(pdf, cdf):
 
 # 8
 def diagnosis_in_future(cdf):
+    """
+    Warning # 8
+    Original warning type: "Initial diagnosis date is in the future"
+
+    :param cdf: Condition data frame.
+    :return:
+        Graph of result.
+    """
     now = datetime.now()
     cdf_copy = cdf.copy()
     count_of_rows = cdf_copy.shape[0]
@@ -352,6 +435,14 @@ def diagnosis_in_future(cdf):
 # reports
 # 1+2
 def missing_collection_collectedDateTime(pdf, sdf):
+    """
+    Report # 1 + 2
+
+    :param pdf: Patient data frame.
+    :param sdf: Specimen data frame.
+    :return:
+        Graphs of result.
+    """
     sdf_copy = sdf.copy()
     sdf_copy["patient_id"] = sdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
     pdf_copy = pdf.copy()
@@ -365,7 +456,7 @@ def missing_collection_collectedDateTime(pdf, sdf):
     incorrect_count = merged_ddf["missing_collection_collectedDateTime"].sum()
 
     filter_ddf = merged_ddf[merged_ddf['missing_collection_collectedDateTime'] == True]
-    filter_ddf.to_csv('reports/omop/patients_without_collection_collectedDateTime.csv', index=False)
+    filter_ddf.to_csv('reports/fhir/patients_without_collection_collectedDateTime.csv', index=False)
 
     filter_ddf = merged_ddf[merged_ddf['missing_collection_collectedDateTime'] == False]
     filter_ddf.to_csv('reports/fhir/patients_with_collection_collectedDateTime.csv', index=False)
@@ -374,7 +465,7 @@ def missing_collection_collectedDateTime(pdf, sdf):
         "Records": ["Number of records",
                     "patients_without_missing_specimen_collection_collectedDateTime",
                     "patients_with_missing_specimen_collection_collectedDateTime"],
-        "Count": [count_of_rows, incorrect_count, count_of_rows - incorrect_count]
+        "Count": [count_of_rows, count_of_rows - incorrect_count, incorrect_count]
     }
     dff = pd.DataFrame(result)
     fig_dff = px.bar(dff, x='Records', y='Count')
@@ -383,6 +474,14 @@ def missing_collection_collectedDateTime(pdf, sdf):
 
 # 3
 def patients_without_specimen_type_text(pdf, sdf):
+    """
+    Report # 3
+
+    :param pdf: Person data frame.
+    :param sdf: Specimen data frame.
+    :return:
+        Graphs of result.
+    """
     sdf_copy = sdf.copy()
     sdf_copy["patient_id"] = sdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
     pdf_copy = pdf.copy()
@@ -395,12 +494,112 @@ def patients_without_specimen_type_text(pdf, sdf):
     incorrect_count_source = merged_ddf["missing_specimen_type_text"].sum()
 
     filter_ddf = merged_ddf[merged_ddf['missing_specimen_type_text'] == True]
-    filter_ddf.to_csv('reports/omop/patients_without_specimen_type_text.csv', index=False)
+    filter_ddf.to_csv('reports/fhir/patients_without_specimen_type_text.csv', index=False)
 
     result = {
         "Records": ["Number of records",
                     "patients_without_specimen_type_text"],
         "Count": [count_of_rows, incorrect_count_source]
+    }
+    dff = pd.DataFrame(result)
+    fig_dff = px.bar(dff, x='Records', y='Count')
+    return fig_dff
+
+
+# 6
+def patients_without_condition_values(pdf, cdf):
+    """
+    Report # 6
+
+    :param pdf: Person data frame.
+    :param cdf: Condition Occurrence data frame.
+    :return:
+        Graphs of result.
+    """
+
+    cdf_copy = cdf.copy()
+    cdf_copy["patient_id"] = cdf_copy["subject_reference"].apply(lambda x: x.split("/")[1])
+    pdf_copy = pdf.copy()
+    pdf_copy["patient_id"] = pdf_copy["id"]
+    merged_ddf = pd.merge(pdf_copy, cdf_copy, how="left", on="patient_id")
+    count_of_rows = merged_ddf.shape[0]
+    merged_ddf = merged_ddf.dropna()
+
+    # code_coding_system
+    merged_ddf["missing_code_coding_system"] = merged_ddf["code_coding_system"].isnull()
+    incorrect_count_system = merged_ddf["missing_code_coding_system"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_code_coding_system'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_code_coding_system.csv', index=False)
+
+    # code_coding_code
+    merged_ddf["missing_code_coding_code"] = merged_ddf["code_coding_code"].isnull()
+    incorrect_count_code = merged_ddf["missing_code_coding_code"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_code_coding_code'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_ccode_coding_code.csv', index=False)
+
+    # code_coding_display
+    merged_ddf["missing_code_coding_display"] = merged_ddf["code_coding_display"].isnull()
+    incorrect_count_display = merged_ddf["missing_code_coding_display"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_code_coding_display'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_code_coding_display.csv', index=False)
+
+    # code_text
+    merged_ddf["missing_code_text"] = merged_ddf["code_text"].isnull()
+    incorrect_count_text = merged_ddf["missing_code_text"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_code_text'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_code_text.csv', index=False)
+
+    # subject_reference
+    merged_ddf["missing_subject_reference"] = merged_ddf["subject_reference"].isnull()
+    incorrect_count_subject = merged_ddf["missing_subject_reference"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_subject_reference'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_subject_reference.csv', index=False)
+
+    # clinicalStatus_coding_system
+    merged_ddf["missing_clinicalStatus_coding_system"] = merged_ddf["clinicalStatus_coding_system"].isnull()
+    incorrect_count_status_system = merged_ddf["missing_clinicalStatus_coding_system"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_clinicalStatus_coding_system'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_clinicalStatus_coding_system.csv', index=False)
+
+    # clinicalStatus_coding_code
+    merged_ddf["missing_clinicalStatus_coding_code"] = merged_ddf["clinicalStatus_coding_code"].isnull()
+    incorrect_count_status_code = merged_ddf["missing_clinicalStatus_coding_code"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_clinicalStatus_coding_code'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_clinicalStatus_coding_code.csv', index=False)
+
+    # clinicalStatus_coding_display
+    merged_ddf["missing_clinicalStatus_coding_display"] = merged_ddf["clinicalStatus_coding_display"].isnull()
+    incorrect_count_status_display = merged_ddf["missing_clinicalStatus_coding_display"].sum()
+
+    filter_ddf = merged_ddf[merged_ddf['missing_clinicalStatus_coding_display'] == True]
+    filter_ddf.to_csv('reports/fhir/patients_without_clinicalStatus_coding_display.csv', index=False)
+
+    result = {
+        "Records": ["Number of records",
+                    "patients_without_code_coding_system",
+                    "patient_without_code_coding_code",
+                    "patients_without_code_coding_display",
+                    "patients_without_code_text",
+                    "patient_without_subject_reference",
+                    "patients_without_clinicalStatus_coding_system",
+                    "patient_without_clinicalStatus_coding_code",
+                    "patients_without_clinicalStatus_coding_display"],
+        "Count": [count_of_rows,
+                  incorrect_count_system,
+                  incorrect_count_code,
+                  incorrect_count_display,
+                  incorrect_count_text,
+                  incorrect_count_subject,
+                  incorrect_count_status_system,
+                  incorrect_count_status_code,
+                  incorrect_count_status_display]
     }
     dff = pd.DataFrame(result)
     fig_dff = px.bar(dff, x='Records', y='Count')
