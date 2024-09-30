@@ -103,6 +103,7 @@ def create_dq_checks(can, pdf, cdf, sdf, server):
     qc.conformance_relational(sdf, server)
     qc.conformance_relational(cdf, server)
     qc.conformance_computational(pdf, sdf, cdf)
+    # TODO proč tady není vykreslení?
 
 def create_warnings(can, pdf, cdf, sdf):
     """

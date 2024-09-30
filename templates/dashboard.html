@@ -28,17 +28,16 @@
         </div>
         <div class="main-content">
 
-             <!-- Div where the Plotly graph will be rendered -->
-            <div id="plotly-div"></div>
+             <!-- Loop through the graphs JSONs passed by Flask -->
+            {% for graph in graphs %}
+            <div id="graph-{{ loop.index }}" class="graph-container" style="height: 400px;"></div>
 
-            <!-- JavaScript to render the Plotly graph -->
-            <script type="text/javascript">
-                // Parse the graph JSON data passed from Flask
-                var plotly_data = {{ graphJSON | safe }};
-
-                // Render the graph in the div
-                Plotly.newPlot('plotly-div', plotly_data.data, plotly_data.layout);
+            <script>
+                // Parse the JSON and render the Plotly graph in the respective div
+                var graphData = JSON.parse('{{ graph | safe }}');
+                Plotly.newPlot('graph-{{ loop.index }}', graphData.data, graphData.layout || {});
             </script>
+            {% endfor %}
 
             <form action="/go_to_end" method="POST">
                     <button type="submit" name="action" class="dark corner second" >Next</button>
