@@ -327,6 +327,18 @@ def fire():
     conformance_c = quality_checks_fhir.conformance_computational(pdf, sdf, cdf).to_json()
     graphs.append(conformance_c)
 
+    age_at_primary_diagnosis = quality_checks_fhir.age_at_primary_diagnosis(pdf, cdf)
+    graphs.append(age_at_primary_diagnosis)
+    diagnosis_in_future = quality_checks_fhir.diagnosis_in_future(cdf)
+    graphs.append(diagnosis_in_future)
+    missing_collection_collectedDateTime = quality_checks_fhir.missing_collection_collectedDateTime(pdf, sdf)
+    graphs.append(missing_collection_collectedDateTime)
+    # TODO problem here
+    # patients_without_specimen_type_text = quality_checks_fhir.patients_without_specimen_type_text(pdf, cdf)
+    # graphs.append(patients_without_specimen_type_text)
+    patients_without_condition_values = quality_checks_fhir.patients_without_condition_values(pdf, cdf)
+    graphs.append(patients_without_condition_values)
+
     # create report
     # create_report_fhir(smart_client.server)
     return graphs
