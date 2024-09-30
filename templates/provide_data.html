@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8">
+    <title>Tool name</title>
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Provide data for FHIR conversion</header>
+        <div>
+            <div class="db-title">Drop the data file </div>
+
+            <!--chatgpt generated code - the form part -->
+            <form action="/go_to_check_data_format" method="POST" enctype="multipart/form-data">
+                <label for="file">Choose file from your local disk:</label>
+                <input type="file" id="file" name="file"><br><br>
+                <button type="submit" name="action" class="corner dark second" value="next">Upload</button>
+            </form>
+        </div>
+        <div class="steps-tracker-and-buttons">
+            <div class="steps">
+            </div>
+            <div class="buttons">
+                <!--form action="/go_to_connection_fhir" method="POST">
+                    <button type="submit" name="action" class="corner light first" value="skip">Skip</button>
+                </form-->
+            </div>
+        </div>
+    </div>
+</body>
+</html>

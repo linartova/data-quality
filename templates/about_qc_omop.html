@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Name of tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Our quality checks provide:</header>
+        <div>
+            main controls
+        </div>
+        <div class="bruh">
+            <div class="steps">
+                Steps 1/4.
+            </div>
+            <div>
+                <form action="/go_to_about_qc_again_omop" method="POST">
+                    <button name="action" type="submit" class="dark corner">Next</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Name of tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Choose your path</header>
+        <div>
+            Decide which data standard you want to use based on provided information.
+        </div>
+        <div class="bruh">
+            <div class="steps">
+                Steps 1/4.
+            </div>
+            <div>
+                <form action="/choose_your_path_form" method="POST">
+                    <button type="submit" name="action" class="corner dark" style="left: 35%" value="fhir">FHIR only</button>
+                    <button type="submit" name="action" class="corner dark first" value="omop">OMOP only</button>
+                    <button type="submit" name="action" class="corner dark second" value="both">Both FHIR and OMOP</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

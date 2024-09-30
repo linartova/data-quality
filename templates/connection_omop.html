@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Name of tool</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Connection result</header>
+        <div>
+            Server connected! / Connection failed.
+        </div>
+        <div class="bruh">
+            <div class="steps">
+                Steps 1/4.
+            </div>
+            <div>
+                <form action="/connection_omop_form" method="POST">
+                    <!-- TODO jenom jeden button, přepíná se podle úspěchu připojení -->
+                    <button type="submit" name="action" class="light corner first" value="again">Try again</button>
+                    <button type="submit" name="action" class="dark corner second" value="continue">Continue</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
