@@ -3,11 +3,11 @@
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <meta charset="UTF-8">
-    <title>Tool name</title>
+    <title>Convector</title>
 </head>
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
-        <form action="/go_to_connection_omop" method="POST">
+        <form action="/FROM_provide_database_omop_TO_connection_omop" method="POST" enctype="multipart/form-data">
         <header>Provide data for OMOP conversion</header>
         <div>
             <div class="db-title">Database information</div>
@@ -31,8 +31,6 @@
             </div>
         </div>
         <div class="steps-tracker-and-buttons">
-            <div class="steps">
-            </div>
             <div class="buttons">
                 <button type="submit" name="action" class="light corner first" value="back">Back</button>
                 <button type="submit" name="action" class="dark corner second" value="next">Next</button>

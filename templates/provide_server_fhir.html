@@ -3,11 +3,11 @@
 <head>
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
     <meta charset="UTF-8">
-    <title>Tool name</title>
+    <title>Convector</title>
 </head>
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
-        <form action="/get_server_url" method="POST" enctype="multipart/form-data">
+        <form action="/provide_server_fhir_form" method="POST" enctype="multipart/form-data">
         <header>Provide server for FHIR conversion</header>
         <div>
             <div class="db-title">Server information</div>
@@ -19,10 +19,7 @@
             </div>
         </div>
         <div class="steps-tracker-and-buttons">
-            <div class="steps">
-            </div>
             <div class="buttons">
-                <button class="corner light first">Skip</button>
                 <button type="submit" class="corner dark second">Convert</button>
             </div>
         </div>

@@ -32,8 +32,9 @@
 17.errors_omop
 
 # dashboard
-18.dashboard
+18.dashboard fhir
 # in dashboard you can switch between fhir and omop
+19.dashboard omop
 
 # the end
-19.thanks
+20.thanks

@@ -42,8 +42,6 @@ body {
 
 .sidebar ul li {
     border-top: 1px solid white;
-    padding-top: 16px;
-    margin-bottom: 16px;          /* Space between items */
 }
 
 .sidebar ul li a {
@@ -89,4 +87,12 @@ button {
   color: #ffffff;
   background: #D379DF;
   border: 0px;
+}
+
+.view {
+  font-size: medium;
+  border: none;
+  background-color: #F2E3F4;
+  margin: none,
+  padding: none
 }

@@ -4,27 +4,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Left Side Panel Example</title>
+    <title>Convector</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
 <body>
     <div class="container">
         <div class="sidebar">
-            <h2>FHIR dashboard</h2>
-            <ul>
-                <li><a href="#">View reports</a></li>
-                <li><a href="#">View graphs</a></li>
-                <li><a href="#">View failures</a></li>
-            </ul>
-            <ul>
-                <li><a href="#">Export reports</a></li>
-                <li><a href="#">Export graphs</a></li>
-                <li><a href="#">Export failures</a></li>
-            </ul>
-            <ul>
-                <li style="border-bottom: 4px solid white; padding-bottom: 16px;"><a href="#">View OMOP dashboard</a></li>
-            </ul>
+            <form action="/go_to_dashboard_omop" method="POST">
+                <h2>FHIR dashboard</h2>
+                <ul>
+                    <li><button class="view">View reports</button></li>
+                    <li><button class="view">View graphs</button></li>
+                    <li><button class="view">View failures</button></li>
+                </ul>
+                <ul>
+                    <li><button class="view">Export reports</button></li>
+                    <li><button class="view">Export graphs</button></li>
+                    <li><button class="view">Export failures</button></li>
+                </ul>
+                <ul>
+                    <li style="border-bottom: 4px solid white; padding-bottom: 16px;">
+                        <button type="submit" name="action" class="view">View OMOP dashboard</button>
+                    </li>
+                </ul>
+            </form>
         </div>
         <div class="main-content">
 
@@ -38,10 +42,6 @@
                 Plotly.newPlot('graph-{{ loop.index }}', graphData.data, graphData.layout || {});
             </script>
             {% endfor %}
-
-            <form action="/go_to_end" method="POST">
-                    <button type="submit" name="action" class="dark corner second" >Next</button>
-            </form>
         </div>
     </div>
 </body>
