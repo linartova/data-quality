@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8">
+    <title>Convector</title>
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Provide data for FHIR conversion</header>
+        <div>
+            <div class="db-title">Drop the data file </div>
+
+            <!--chatgpt generated code - the form part -->
+            <form action="/FROM_provide_data_TO_check_data_format" method="POST" enctype="multipart/form-data">
+                <label for="file">Choose file from your local disk:</label>
+                <input type="file" id="file" name="file"><br><br>
+                <button type="submit" name="action" class="corner dark second" value="go">Upload</button>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

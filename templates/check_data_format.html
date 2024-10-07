@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Convector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Data format check result</header>
+        <div>
+            Alright! / Bad.
+        </div>
+        <div class="bruh">
+            <div>
+                <form action="/FROM_check_data_format_TO_why_fhir" method="POST">
+                    <!-- TODO jenom jeden button, přepíná se podle úspěchu připojení -->
+                    <button type="submit" name="action" class="light corner first" value="back">Back</button>
+                    <button type="submit" name="action" class="dark corner second" value="go">Next</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

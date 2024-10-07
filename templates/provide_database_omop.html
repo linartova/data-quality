@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+    <meta charset="UTF-8">
+    <title>Convector</title>
+</head>
+<body>
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <form action="/FROM_provide_database_omop_TO_connection_omop" method="POST" enctype="multipart/form-data">
+        <header>Provide data for OMOP conversion</header>
+        <div>
+            <div class="db-title">Database information</div>
+            <div class="grid-container-element">
+                <div class="grid-child-element">
+                    <label class="bruh" for="host">Host name:</label>
+                    <input class="bruh" type="text" id="host" name="host"><br>
+                    <label class="bruh" for="port">Port:</label>
+                    <input class="bruh" type="text" id="port" name="port"><br>
+                    <label class="bruh" for="user">User:</label>
+                    <input class="bruh" type="text" id="user" name="user"><br>
+                </div>
+                <div class="grid-child-element">
+                    <label class="bruh" for="password">Password:</label>
+                    <input class="bruh" type="text" id="password" name="password">
+                    <label class="bruh" for="database">Database:</label>
+                    <input class="bruh" type="text" id="database" name="database">
+                    <label class="bruh" for="schema">Schema:</label>
+                    <input class="bruh" type="text" id="schema" name="schema">
+                </div>
+            </div>
+        </div>
+        <div class="steps-tracker-and-buttons">
+            <div class="buttons">
+                <button type="submit" name="action" class="light corner first" value="back">Back</button>
+                <button type="submit" name="action" class="dark corner second" value="next">Next</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</body>
+</html>

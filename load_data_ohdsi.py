@@ -14,7 +14,7 @@ def read_xml_and_parse(file_name):
     :return:
         Data prepared in the list of instances of classes from ohdsi_classes.py
     """
-    tree = ElementTree.parse(file_name)
+    tree = ElementTree.parse("uploads/" + file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
     result = []

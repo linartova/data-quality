@@ -42,7 +42,7 @@ def read_xml_and_create_resources(file_name, smart):
     :return:
         None
     """
-    tree = ElementTree.parse(file_name)
+    tree = ElementTree.parse("uploads/" + file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
     result = []

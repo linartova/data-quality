@@ -1,0 +1,40 @@
+1.start
+
+# data part
+2.provide_data
+3.check_data_format
+
+# info part
+4.why_fhir
+5.about_qc_fhir
+6.about_qc_again_fhir
+7.why_omop
+8.about_qc_omop
+9.about_qc_again_omop
+
+# choose standard
+10.choose_your_path
+
+# fhir workflow
+11.provide_server_fhir
+12.connection_fhir
+# if only omop selected, skip to:
+
+# omop workflow
+13.provide_database_omop
+14.connection_omop
+
+# run qc
+15.run_qc
+
+# see errors
+16.errors_fhir
+17.errors_omop
+
+# dashboard
+18.dashboard fhir
+# in dashboard you can switch between fhir and omop
+19.dashboard omop
+
+# the end
+20.thanks
