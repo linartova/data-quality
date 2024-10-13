@@ -70,10 +70,10 @@ button {
   justify-items: center;
 }
 
-/* step 3 extra selectors */
 .grid-container-element {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    text-align-last: center;
+    /* display: grid;
+    grid-template-columns: 1fr 1fr; */
 }
 
 .grid-child-element {

@@ -8,15 +8,26 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
-<body>
+<body onload="checkStandard({{ standard }})">
     <div class="container">
         <div class="sidebar">
-            <form action="/go_to_dashboard_omop" method="POST">
-                <h2>FHIR dashboard</h2>
+                <h2>OMOP dashboard</h2>
                 <ul>
-                    <li><button class="view">View reports</button></li>
-                    <li><button class="view">View graphs</button></li>
-                    <li><button class="view">View failures</button></li>
+                    <li>
+                        <form action="/view_reports_omop" method="POST">
+                            <button class="view">View reports</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="/view_graphs_omop" method="POST">
+                            <button class="view">View graphs</button>
+                        </form>
+                    </li>
+                    <li>
+                        <form action="/view_failures_omop" method="POST">
+                            <button class="view">View failures</button>
+                        </form>
+                    </li>
                 </ul>
                 <ul>
                     <li><button class="view">Export reports</button></li>
@@ -24,15 +35,17 @@
                     <li><button class="view">Export failures</button></li>
                 </ul>
                 <ul>
-                    <li style="border-bottom: 4px solid white; padding-bottom: 16px;">
-                        <button type="submit" name="action" class="view">View OMOP dashboard</button>
+                    <li id="view_dashboard" style="border-bottom: 4px solid white; padding-bottom: 16px;">
+                        <form action="/go_to_dashboard_omop" method="POST">
+                            <button type="submit" name="action" class="view">View FHIR dashboard</button>
+                        </form>
                     </li>
                 </ul>
-            </form>
         </div>
         <div class="main-content">
+            <h1>OMOP graphs</h1>
 
-             <!-- Loop through the graphs JSONs passed by Flask -->
+            <!-- Loop through the graphs JSONs passed by Flask -->
             {% for graph in graphs %}
             <div id="graph-{{ loop.index }}" class="graph-container" style="height: 400px;"></div>
 
@@ -44,5 +57,10 @@
             {% endfor %}
         </div>
     </div>
+    <script>
+        if (standard != "both") {
+            document.getElementById("view_dashboard").remove();
+        }
+    </script>
 </body>
 </html>
