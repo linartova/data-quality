@@ -30,9 +30,15 @@
                     </li>
                 </ul>
                 <ul>
-                    <li><button class="view">Export reports</button></li>
-                    <li><button class="view">Export graphs</button></li>
-                    <li><button class="view">Export failures</button></li>
+                    <li>
+                        <button class="view">Export reports</button>
+                    </li>
+                    <li>
+                        <button class="view" onclick="downloadGraphsOmopZIP()">Export graphs</button>
+                    </li>
+                    <li>
+                        <button class="view" onclick="downloadFailuresOmopZIP()">Export failures</button>
+                    </li>
                 </ul>
                 <ul>
                     <li id="view_dashboard" style="border-bottom: 4px solid white; padding-bottom: 16px;">
@@ -61,6 +67,14 @@
     <script>
         if (standard != "both") {
             document.getElementById("view_dashboard").remove();
+        }
+
+        function downloadGraphsOmopZIP() {
+            window.location.href = '/download_graphs_omop_zip';
+        }
+
+        function downloadFailuresOmopZIP() {
+            window.location.href = '/download_failures_omop_zip';
         }
     </script>
 </body>

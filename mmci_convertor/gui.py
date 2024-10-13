@@ -620,53 +620,17 @@ def check_database_connection(params):
 def format_check():
      pass
 
-# @app.route('/download')
-# def download_file():
-#     # Create a CSV file in memory
-#     output = io.StringIO()
-#     writer = csv.writer(output)
-#     writer.writerow(['Column 1', 'Column 2', 'Column 3'])
-#     writer.writerow(['Row 1', 'Data 1', 'Data 2', 'Data 3'])
-#     writer.writerow(['Row 2', 'Data 1', 'Data 2', 'Data 3'])
-#
-#     # Create the response and set the appropriate headers for file download
-#     response = make_response(output.getvalue())
-#     response.headers['Content-Disposition'] = 'attachment; filename=generated_file.csv'
-#     response.headers['Content-Type'] = 'text/csv'
-#
-#     return response
-#
-# @app.route('/download')
-# def download_file():
-#     # Create a CSV file in memory
-#     output = io.StringIO()
-#     writer = csv.writer(output)
-#     writer.writerow(['Column 1', 'Column 2', 'Column 3'])
-#     writer.writerow(['Row 1', 'Data 1', 'Data 2', 'Data 3'])
-#     writer.writerow(['Row 2', 'Data 1', 'Data 2', 'Data 3'])
-#
-#     # Create the response and set the appropriate headers for file download
-#     response = make_response(output.getvalue())
-#     response.headers['Content-Disposition'] = 'attachment; filename=generated_file.csv'
-#     response.headers['Content-Type'] = 'text/csv'
-#
-#     return response
 
-# TODO brum brum
-
-# FHIR Graphs
-FILES_PATH_FHIR = os.path.join(os.getcwd(), "plotly_graphs_fhir")
-
-def create_zip_graphs_fhir():
+def create_zip_graphs(files_path):
     # Create an in-memory ZIP file
     zip_buffer = io.BytesIO()
 
     # List of files to add to the ZIP
-    files_to_zip = [("graph_" + str(x) + ".json") for x in range(16) ]
+    files_to_zip = ["graph_" + str(x) + ".json" for x in range(16)]
 
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for file_name in files_to_zip:
-            file_path = os.path.join(FILES_PATH_FHIR, file_name)
+            file_path = os.path.join(files_path, file_name)
             if os.path.exists(file_path):
                 zip_file.write(file_path, arcname=file_name)
             else:
@@ -677,26 +641,41 @@ def create_zip_graphs_fhir():
 
 @app.route('/download_graphs_fhir_zip')
 def download_graphs_fhir_zip():
+    files_path = os.path.join(os.getcwd(), "plotly_graphs_fhir")
     # Generate the ZIP file containing existing files
-    zip_buffer = create_zip_graphs_fhir()
+    zip_buffer = create_zip_graphs(files_path)
 
     # Send the ZIP file as a downloadable response
-    return send_file(zip_buffer, as_attachment=True, download_name="files.zip", mimetype='application/zip')
+    return send_file(zip_buffer, as_attachment=True, download_name="graphs_fhir.zip", mimetype='application/zip')
 
-# OMOP Graphs
-FILES_PATH_OMOP = os.path.join(os.getcwd(), "plotly_graphs_omop")
+@app.route('/download_graphs_omop_zip')
+def download_graphs_omop_zip():
+    files_path = os.path.join(os.getcwd(), "plotly_graphs_omop")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_graphs(files_path)
 
-# TODO tady mám copy paste kód zbytečně
-def create_zip_graphs_omop():
-    # Create an in-memory ZIP file
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="graphs_omop.zip", mimetype='application/zip')
+
+def create_zip_failures(files_path):
     zip_buffer = io.BytesIO()
+    files_to_zip = []
 
-    # List of files to add to the ZIP
-    files_to_zip = [("graph_" + str(x) + ".json") for x in range(16) ]
+    # Ensure the directory exists?
+    if not os.path.exists(files_path):
+        print(f"The directory {files_path} does not exist.")
+        return
+
+    for item in os.listdir(files_path):
+        item_path = os.path.join(files_path, item)
+        if item == "empty":
+            continue
+        elif os.path.isfile(item_path):
+            files_to_zip.append(item)
 
     with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for file_name in files_to_zip:
-            file_path = os.path.join(FILES_PATH_FHIR, file_name)
+            file_path = os.path.join(files_path, file_name)
             if os.path.exists(file_path):
                 zip_file.write(file_path, arcname=file_name)
             else:
@@ -705,15 +684,23 @@ def create_zip_graphs_omop():
     zip_buffer.seek(0)  # Rewind the buffer to the beginning
     return zip_buffer
 
-@app.route('/download_graphs_omop_zip')
-def download_graphs_omop_zip():
+@app.route('/download_failures_fhir_zip')
+def download_failures_fhir_zip():
+    files_path = os.path.join(os.getcwd(), "reports/fhir")
     # Generate the ZIP file containing existing files
-    zip_buffer = create_zip_graphs_omop()
+    zip_buffer = create_zip_failures(files_path)
 
     # Send the ZIP file as a downloadable response
-    return send_file(zip_buffer, as_attachment=True, download_name="files.zip", mimetype='application/zip')
+    return send_file(zip_buffer, as_attachment=True, download_name="failures_fhir.zip", mimetype='application/zip')
 
+@app.route('/download_failures_omop_zip')
+def download_failures_omop_zip():
+    files_path = os.path.join(os.getcwd(), "reports/omop")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_failures(files_path)
 
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="failures_omop.zip", mimetype='application/zip')
 
 if __name__ == "__main__":
     try:

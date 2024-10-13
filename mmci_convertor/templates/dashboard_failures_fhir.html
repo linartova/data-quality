@@ -34,10 +34,10 @@
                         <button class="view">Export reports</button>
                     </li>
                     <li>
-                        <button class="view">Export graphs</button>
+                        <button class="view" onclick="downloadGraphsFhirZIP()">Export graphs</button>
                     </li>
                     <li>
-                        <button class="view">Export failures</button>
+                        <button class="view" onclick="downloadFailuresFhirZIP()">Export failures</button>
                     </li>
                 </ul>
                 <ul>
@@ -67,6 +67,14 @@
     <script>
         if (standard != "both") {
             document.getElementById("view_dashboard").remove();
+        }
+
+        function downloadGraphsFhirZIP() {
+            window.location.href = '/download_graphs_fhir_zip';
+        }
+
+        function downloadFailuresFhirZIP() {
+            window.location.href = '/download_failures_fhir_zip';
         }
     </script>
 </body>
