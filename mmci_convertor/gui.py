@@ -1,6 +1,6 @@
 import json
 import psycopg2
-from flask import Flask, redirect, url_for,  render_template, request, session, send_file, make_response
+from flask import Flask, redirect, url_for,  render_template, request, session, send_file
 import os
 from load_data_fhir import provide_server_connection, read_xml_and_create_resources
 from load_data_ohdsi import load_data
@@ -10,9 +10,7 @@ import atexit
 import pandas as pd
 from fhirclient import client
 import io
-import csv
 import zipfile
-import plotly.graph_objects as go
 
 
 app = Flask(__name__)
@@ -294,18 +292,22 @@ def run_qc_form():
     try:
         standard = session.get("standard")
         input_file = session.get("file_name")
+        session["graphs_done"] = False
         print(standard)
         if standard == "fhir":
-            graphs = fire()
-            return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
+            fire()
+            session["graphs_done"] = True
+            return render_template('dashboard_graphs_fhir.html', standard=standard)
         elif standard == "omop":
             ohdsi = session.get("ohdsi")
             graphs = omop_workflow(ohdsi, input_file)
+            session["graphs_done"] = True
             return render_template('dashboard_graphs_omop.html', graphs=graphs, standard=standard)
         elif standard == "both":
             graphs = fire()
             ohdsi = session.get("ohdsi")
             omop_workflow(ohdsi, input_file)
+            session["graphs_done"] = True
             return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
     except Exception as e:
         print(f"Error: {e}")
@@ -701,6 +703,26 @@ def download_failures_omop_zip():
 
     # Send the ZIP file as a downloadable response
     return send_file(zip_buffer, as_attachment=True, download_name="failures_omop.zip", mimetype='application/zip')
+
+
+@app.route('/check_graphs_done')
+def check_graphs_done():
+    graphs_done = session.get("graphs_done")
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('plotly_graphs_fhir'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('plotly_graphs_fhir', file_name)) as f:
+                graphs.append(json.load(f))
+
+    data = {
+        "response" : graphs_done,
+        "graphs" : graphs
+    }
+    json_data = json.dumps(data)
+    return json_data
+
 
 if __name__ == "__main__":
     try:

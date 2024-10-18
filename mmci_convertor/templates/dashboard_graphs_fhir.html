@@ -7,6 +7,7 @@
     <title>Convector</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
 <body onload="checkStandard({{ standard }})">
     <div class="container">
@@ -48,20 +49,8 @@
                     </li>
                 </ul>
         </div>
-        <div class="main-content">
+        <div class="main-content" id="main-content">
             <h1>FHIR graphs</h1>
-
-             <!-- Loop through the graphs JSONs passed by Flask -->
-            {% for graph in graphs %}
-            <div id="graph-{{ loop.index }}" class="graph-container" style="height: 400px;"></div>
-
-            <script>
-                // Parse the JSON and render the Plotly graph in the respective div
-                var graphData = JSON.parse('{{ graph | safe }}');
-                Plotly.newPlot('graph-{{ loop.index }}', graphData.data, graphData.layout || {});
-            </script>
-            {% endfor %}
-
         </div>
     </div>
     <script>
@@ -77,5 +66,50 @@
             window.location.href = '/download_failures_fhir_zip';
         }
     </script>
+
+    <script>
+        function pollSessionValue() {
+            const intervalId = setInterval(() => {
+                fetch('/check_graphs_done')
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                        })
+                    .then(data => {
+                        const done = data["response"];
+                        const graphs = data["graphs"];
+
+                        if (done == true) {
+                            addNewDiv(graphs);
+                            }
+                            clearInterval(intervalId);
+                        })
+                    .catch(error => console.error('Error:', error));
+            }, 30000); //TODO first pool after five second, then 10 second and then 30 seconds till the end
+        }
+
+        function addNewDiv(graphs) {
+            const container = document.getElementById("main-content");
+            for (let i = 0; i < graphs.length; i++) {
+                const newDiv = document.createElement('div');
+                newDiv.id = "graph".concat("-", i.toString());
+                newDiv.className = "graph-container";
+                newDiv.style.cssText = "height: 400px;";
+                container.appendChild(newDiv);
+
+                const graphJson = graphs.at(i);
+                const graph = JSON.parse(graphJson);
+                const plotData = graph.data;
+                const plotLayout = graph.layout;
+                Plotly.newPlot('graph'.concat("-", i.toString()), plotData, plotLayout);
+            }
+        }
+        window.onload = function() {
+            pollSessionValue();
+        };
+    </script>
+
 </body>
 </html>
