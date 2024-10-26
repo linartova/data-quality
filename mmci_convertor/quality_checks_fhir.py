@@ -368,7 +368,6 @@ def conformance_computational(pdf, sdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.scatter(dff, x='Records', y='Count')
-    fig.write_image("con_comp_fhir.svg")
     return fig
 
 

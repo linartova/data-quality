@@ -1,13 +1,18 @@
 import json
 import psycopg2
-from flask import Flask, redirect, url_for,  render_template, request, session
+from flask import Flask, redirect, url_for,  render_template, request, session, send_file
 import os
-from export_graphs_fhir import create_report_fhir
-from export_graphs_ohdsi import create_report_ohdsi
 from load_data_fhir import provide_server_connection, read_xml_and_create_resources
 from load_data_ohdsi import load_data
 import quality_checks_fhir
 import quality_checks_ohdsi as qc_o
+import atexit
+import pandas as pd
+from fhirclient import client
+import io
+import zipfile
+import threading
+from input_validation import check_well_formed_xml, validate_elements
 
 
 app = Flask(__name__)
@@ -79,9 +84,17 @@ def connection_fhir():
 def run_qc():
     return render_template("run_qc.html")
 
-@app.route("/dashboard_fhir")
-def dashboard_fhir():
-    return render_template("dashboard_fhir.html")
+@app.route("/dashboard_reports_fhir")
+def dashboard_reports_fhir():
+    return render_template("dashboard_reports_fhir.html")
+
+@app.route("/dashboard_graphs_fhir")
+def dashboard_graphs_fhir():
+    return render_template("dashboard_graphs_fhir.html")
+
+@app.route("/dashboard_failures_fhir")
+def dashboard_failures_fhir():
+    return render_template("dashboard_failures_fhir.html")
 
 # omop workflow
 @app.route("/provide_database_omop")
@@ -92,9 +105,17 @@ def provide_database_omop():
 def connection_omop():
     return render_template("connection_omop.html")
 
-@app.route("/dashboard_omop")
-def dashboard_omop():
-    return render_template("dashboard_omop.html")
+@app.route("/dashboard_reports_omop")
+def dashboard_reports_omop():
+    return render_template("dashboard_reports_omop.html")
+
+@app.route("/dashboard_graphs_omop")
+def dashboard_graphs_omop():
+    return render_template("dashboard_graphs_omop.html")
+
+@app.route("/dashboard_failures_omop")
+def dashboard_failures_omop():
+    return render_template("dashboard_failures_omop.html")
 
 # end
 @app.route("/thanks")
@@ -120,7 +141,16 @@ def upload_file():
     if file:
         session["file_name"] = file.filename
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
-        return redirect(url_for('check_data_format'))
+        content = "Correct input file!"
+        well_formed = check_well_formed_xml(file.filename)
+        if check_well_formed_xml(file.filename) is not None:
+            content = well_formed
+        else:
+            validation = validate_elements(file.filename)
+            if validation is not None:
+                content = validation
+        return render_template("check_data_format.html", content=content)
+
 
 @app.route("/FROM_check_data_format_TO_why_fhir", methods=["POST"])
 def from_check_data_format_to_why_fhir():
@@ -187,14 +217,19 @@ def choose_your_path_form():
 # server connection handling
 @app.route('/provide_server_fhir_form', methods=['POST'])
 def provide_server_fhir_form():
+    url = request.form.get('url')
     session['url'] = request.form.get('url')
-    return redirect(url_for("connection_fhir"))
+    check = check_fhir_connection(url)
+    if check:
+        content = "Server connected!"
+    else:
+        content = "Connection failed."
+    return render_template("connection_fhir.html", content=content)
 
 @app.route("/connection_fhir_form", methods=["POST"])
 def connection_fhir_form():
     try:
         action = request.form.get('action')
-
         if action == 'back':
             return redirect(url_for('provide_server_fhir'))
         elif action == 'next':
@@ -231,10 +266,16 @@ def from_provide_database_omop_to_connection_omop():
         }
         session["ohdsi"] = ohdsi
 
+        check = check_database_connection(ohdsi)
+        if check:
+            content = "Server connected!"
+        else:
+            content = "Connection failed."
+
         if action == "back":
-            return redirect(url_for("provide_database_omop"))
+            return render_template("provide_database_omop.html")
         elif action == "next":
-            return redirect(url_for("connection_omop"))
+            return render_template("connection_omop.html", content=content)
 
     except Exception as e:
         print(f"Error: {e}")
@@ -259,50 +300,131 @@ def connection_omop_form():
 # run quality checks
 @app.route("/run_qc_form", methods=["POST"])
 def run_qc_form():
-    standard = session.get("standard")
-    input_file = session.get("file_name")
-    if standard == "fhir":
-        graphs = fire()
-        return render_template('dashboard_fhir.html', graphs=graphs)
-    elif standard == "omop":
-        ohdsi = session.get("ohdsi")
-        graphs = omop_workflow(ohdsi, input_file)
-        return render_template('dashboard_omop.html', graphs=graphs)
-    elif standard == "both":
-        graphs = fire()
-        return render_template('dashboard_fhir.html', graphs=graphs)
+    try:
+        standard = session.get("standard")
+        input_file = session.get("file_name")
+        url = session.get("url")
+        print(standard)
+        if standard == "fhir":
+            fhir_process = threading.Thread(target=fire, name="FHIR", args=[url, input_file])
+            fhir_process.start()
+            return render_template('dashboard_graphs_fhir.html', standard=standard)
+        elif standard == "omop":
+            ohdsi = session.get("ohdsi")
+            graphs = omop_workflow(ohdsi, input_file)
+            return render_template('dashboard_graphs_omop.html', graphs=graphs, standard=standard)
+        elif standard == "both":
+            graphs = fire(url, input_file)
+            ohdsi = session.get("ohdsi")
+            omop_workflow(ohdsi, input_file)
+            return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
+    except Exception as e:
+        print(f"Error: {e}")
+        return "An error occurred", 500
 
 @app.route('/go_to_dashboard_fhir', methods=['POST'])
 def go_to_dashboard_fhir():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_fhir'):
+    for file_name in os.listdir('graphs/fhir'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_fhir', file_name)) as f:
+            with open(os.path.join('graphs/fhir', file_name)) as f:
                 graphs.append(json.load(f))
 
+    standard = session.get("standard")
+
     # Pass the graphs to the template
-    return render_template('dashboard_fhir.html', graphs=graphs)
+    return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
 
 @app.route('/go_to_dashboard_omop', methods=['POST'])
 def go_to_dashboard_omop():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_omop'):
+    for file_name in os.listdir('graphs/omop'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_omop', file_name)) as f:
+            with open(os.path.join('graphs/omop', file_name)) as f:
                 graphs.append(json.load(f))
 
+    standard = session.get("standard")
+
     # Pass the graphs to the template
-    return render_template('dashboard_omop.html', graphs=graphs)
+    return render_template('dashboard_graphs_omop.html', graphs=graphs, standard=standard)
+
+@app.route("/view_reports_fhir", methods=["POST"])
+def view_reports_fhir():
+    return render_template("dashboard_reports_fhir.html", standard=session.get("standard"))
+
+@app.route("/view_graphs_fhir", methods=["POST"])
+def view_graphs_fhir():
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('graphs/fhir'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('graphs/fhir', file_name)) as f:
+                graphs.append(json.load(f))
+
+    standard = session.get("standard")
+
+    # Pass the graphs to the template
+    return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
+
+@app.route("/view_failures_fhir", methods=["POST"])
+def view_failures_fhir():
+    data_path = './reports/fhir'  # Directory containing CSV files
+    csv_files = [f for f in os.listdir(data_path) if f.endswith('.csv')]
+
+    tables = []
+    for file in csv_files:
+        file_path = os.path.join(data_path, file)
+        df = pd.read_csv(file_path)  # Read CSV file
+        table_html = df.to_html(classes='table table-striped', index=False)  # Convert DataFrame to HTML
+        tables.append({
+            'filename': file,
+            'table': table_html
+        })
+
+    return render_template("dashboard_failures_fhir.html", tables=tables, standard=session.get("standard"))
+
+@app.route("/view_reports_omop", methods=["POST"])
+def view_reports_omop():
+    return render_template('dashboard_reports_omop.html', standard=session.get("standard"))
+
+@app.route("/view_graphs_omop", methods=["POST"])
+def view_graphs_omop():
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('graphs/omop'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('graphs/omop', file_name)) as f:
+                graphs.append(json.load(f))
+
+    standard = session.get("standard")
+
+    # Pass the graphs to the template
+    return render_template('dashboard_graphs_omop.html', graphs=graphs, standard=standard)
+
+@app.route("/view_failures_omop", methods=["POST"])
+def view_failures_omop():
+    data_path = './reports/omop'  # Directory containing CSV files
+    csv_files = [f for f in os.listdir(data_path) if f.endswith('.csv')]
+
+    tables = []
+    for file in csv_files:
+        file_path = os.path.join(data_path, file)
+        df = pd.read_csv(file_path)  # Read CSV file
+        table_html = df.to_html(classes='table table-striped', index=False)  # Convert DataFrame to HTML
+        tables.append({
+            'filename': file,
+            'table': table_html
+        })
+    return render_template("dashboard_failures_omop.html", tables=tables, standard=session.get("standard"))
 
 # graphs generation
-def fire():
-    url = session.get("url")
-    file_name = session.get("file_name")
-
+def fire(url, file_name):
     # server
     smart_client = provide_server_connection(url)
 
@@ -358,11 +480,11 @@ def fire():
 
     # TODO chatGPT
     # Directory to store the JSON files
-    os.makedirs('plotly_graphs_fhir', exist_ok=True)
+    os.makedirs('graphs/fhir', exist_ok=True)
 
     # Save each graph as a separate JSON file
     for i, graph_json in enumerate(graphs):
-        with open(f'plotly_graphs_fhir/graph_{i}.json', 'w') as f:
+        with open(f'graphs/fhir/graph_{i}.json', 'w') as f:
             json.dump(graph_json, f)
 
     # create report
@@ -430,11 +552,11 @@ def omop_workflow(ohdsi, input_file):
 
     # TODO chatGPT
     # Directory to store the JSON files
-    os.makedirs('plotly_graphs_omop', exist_ok=True)
+    os.makedirs('graphs/omop', exist_ok=True)
 
     # Save each graph as a separate JSON file
     for i, graph_json in enumerate(graphs):
-        with open(f'plotly_graphs_omop/graph_{i}.json', 'w') as f:
+        with open(f'graphs/omop/graph_{i}.json', 'w') as f:
             json.dump(graph_json, f)
 
     # create report
@@ -442,5 +564,230 @@ def omop_workflow(ohdsi, input_file):
     # create_report_ohdsi(con, schema)
     return graphs
 
+# TODO ChatGPT generated and customized
+def delete_files_except_one(directory):
+    # Ensure the directory exists
+    if not os.path.exists(directory):
+        print(f"The directory {directory} does not exist.")
+        return
+
+    # Iterate through the directory
+    for item in os.listdir(directory):
+        item_path = os.path.join(directory, item)
+
+        # Skip the file that needs to be kept
+        if item == "empty":
+            continue
+
+        # If it's a file, delete it
+        elif os.path.isfile(item_path):
+            os.remove(item_path)
+            print(f"Deleted file: {item_path}")
+
+def teardown():
+    delete_files_except_one("reports/fhir")
+    delete_files_except_one("reports/omop")
+    delete_files_except_one("graphs/fhir")
+    delete_files_except_one("graphs/omop")
+    delete_files_except_one("uploads")
+    os.remove("patients_ids.txt")
+    os.remove("conditions_ids.txt")
+    os.remove("specimens_ids.txt")
+
+atexit.register(teardown)
+
+# checking functions
+def check_fhir_connection(url):
+    settings = {
+        'app_id': 'my_web_app',
+        'api_base': url
+    }
+    smart = client.FHIRClient(settings=settings)
+    if smart.ready:
+        return False
+    smart.prepare()
+    if not smart.ready:
+        return False
+    if smart.authorize_url is not None:
+        return False
+    return True
+
+def check_database_connection(params):
+    try:
+        # open connection
+        conn = psycopg2.connect(**params)
+        cursor = conn.cursor()
+
+        # close connection
+        cursor.close()
+        conn.close()
+    except Exception as e:
+        return e
+
+
+def create_zip_graphs(files_path):
+    # Create an in-memory ZIP file
+    zip_buffer = io.BytesIO()
+
+    # List of files to add to the ZIP
+    files_to_zip = ["graph_" + str(x) + ".json" for x in range(16)]
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for file_name in files_to_zip:
+            file_path = os.path.join(files_path, file_name)
+            if os.path.exists(file_path):
+                zip_file.write(file_path, arcname=file_name)
+            else:
+                print(f"File {file_name} does not exist.")  # Optional logging
+
+    zip_buffer.seek(0)  # Rewind the buffer to the beginning
+    return zip_buffer
+
+@app.route('/download_graphs_fhir_zip')
+def download_graphs_fhir_zip():
+    files_path = os.path.join(os.getcwd(), "graphs/fhir")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_graphs(files_path)
+
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="graphs_fhir.zip", mimetype='application/zip')
+
+@app.route('/download_graphs_omop_zip')
+def download_graphs_omop_zip():
+    files_path = os.path.join(os.getcwd(), "graphs/omop")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_graphs(files_path)
+
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="graphs_omop.zip", mimetype='application/zip')
+
+def create_zip_failures(files_path):
+    zip_buffer = io.BytesIO()
+    files_to_zip = []
+
+    # Ensure the directory exists?
+    if not os.path.exists(files_path):
+        print(f"The directory {files_path} does not exist.")
+        return
+
+    for item in os.listdir(files_path):
+        item_path = os.path.join(files_path, item)
+        if item == "empty":
+            continue
+        elif os.path.isfile(item_path):
+            files_to_zip.append(item)
+
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for file_name in files_to_zip:
+            file_path = os.path.join(files_path, file_name)
+            if os.path.exists(file_path):
+                zip_file.write(file_path, arcname=file_name)
+            else:
+                print(f"File {file_name} does not exist.")  # Optional logging
+
+    zip_buffer.seek(0)  # Rewind the buffer to the beginning
+    return zip_buffer
+
+@app.route('/download_failures_fhir_zip')
+def download_failures_fhir_zip():
+    files_path = os.path.join(os.getcwd(), "reports/fhir")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_failures(files_path)
+
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="failures_fhir.zip", mimetype='application/zip')
+
+@app.route('/download_failures_omop_zip')
+def download_failures_omop_zip():
+    files_path = os.path.join(os.getcwd(), "reports/omop")
+    # Generate the ZIP file containing existing files
+    zip_buffer = create_zip_failures(files_path)
+
+    # Send the ZIP file as a downloadable response
+    return send_file(zip_buffer, as_attachment=True, download_name="failures_omop.zip", mimetype='application/zip')
+
+
+@app.route('/check_graphs_done_fhir')
+def check_graphs_done_fhir():
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('graphs/fhir'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('graphs/fhir', file_name)) as f:
+                graphs.append(json.load(f))
+
+    if len(graphs) != 16:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "graphs" : graphs
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
+@app.route('/check_failures_done_fhir')
+def check_failures_done_fhir():
+    data_path = './reports/fhir'  # Directory containing CSV files
+    csv_files = [f for f in os.listdir(data_path) if f.endswith('.csv')]
+
+    tables = []
+    for file in csv_files:
+        file_path = os.path.join(data_path, file)
+        df = pd.read_csv(file_path)  # Read CSV file
+        table_html = df.to_html(classes='table table-striped', index=False)  # Convert DataFrame to HTML
+        # tables.append({
+        #     'filename': file,
+        #     'table': table_html
+        # })
+        # TODO
+        tables.append(table_html)
+
+    print(len(tables))
+    # TODO proč jich je 15?
+    if len(tables) != 15:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "tables" : tables
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
+@app.route('/check_graphs_done_omop')
+def check_graphs_done_omop():
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('graphs/omop'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('graphs/omop', file_name)) as f:
+                graphs.append(json.load(f))
+
+    if len(graphs) != 35:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "graphs" : graphs
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
 if __name__ == "__main__":
-    app.run()
+    try:
+        app.run(debug=True)
+    finally:
+        # Optional: Additional cleanup code after app.run() exits (can be useful)
+        print("App.run() has finished executing.")

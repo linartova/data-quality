@@ -32,8 +32,7 @@
                         <Dataelement_25_3 name="NRAS exon 4 (codons 117 or 146)">Not done</Dataelement_25_3>
                         <Dataelement_14_3 name="Microsatellite instability">NOT_DONE</Dataelement_14_3>
                         <Dataelement_15_2 name="Mismatch repair gene expression">NOT_DONE</Dataelement_15_2>
-
-			<Dataelement_16_3 name="Risk situation (only HNPCC)">false</Dataelement_16_3>
+			            <Dataelement_16_3 name="Risk situation (only HNPCC)">false</Dataelement_16_3>
                     </Form>
                 </BasicData>
                 <Events>

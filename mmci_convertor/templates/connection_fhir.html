@@ -8,12 +8,9 @@
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
         <header>Connection result</header>
-        <div>
-            Server connected! / Connection failed.
-        </div>
+        <div>{{content}}</div>
         <div class="bruh">
             <form action="/connection_fhir_form" method="POST">
-                <!-- TODO jenom jeden button, přepíná se podle úspěchu připojení -->
                 <button type="submit" name="action" class="light corner first" value="back">Back</button>
                 <button type="submit" name="action" class="dark corner second" value="next">Next</button>
             </form>
