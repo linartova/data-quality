@@ -48,33 +48,11 @@
                     </li>
                 </ul>
         </div>
-        <div class="main-content">
+        <div class="main-content" id="main-content">
             <h1>OMOP graphs</h1>
-
-            <!-- Loop through the graphs JSONs passed by Flask -->
-            {% for graph in graphs %}
-            <div id="graph-{{ loop.index }}" class="graph-container" style="height: 400px;"></div>
-
-            <script>
-                // Parse the JSON and render the Plotly graph in the respective div
-                var graphData = JSON.parse('{{ graph | safe }}');
-                Plotly.newPlot('graph-{{ loop.index }}', graphData.data, graphData.layout || {});
-            </script>
-            {% endfor %}
+            <div class="progress-bar" id="progress-bar"></div>
         </div>
     </div>
-    <script>
-        if (standard != "both") {
-            document.getElementById("view_dashboard").remove();
-        }
-
-        function downloadGraphsOmopZIP() {
-            window.location.href = '/download_graphs_omop_zip';
-        }
-
-        function downloadFailuresOmopZIP() {
-            window.location.href = '/download_failures_omop_zip';
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/dashboard_graphs_omop.js') }}"></script>
 </body>
 </html>

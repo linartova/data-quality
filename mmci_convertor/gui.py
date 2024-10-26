@@ -11,6 +11,8 @@ import pandas as pd
 from fhirclient import client
 import io
 import zipfile
+import threading
+from input_validation import check_well_formed_xml, validate_elements
 
 
 app = Flask(__name__)
@@ -139,7 +141,16 @@ def upload_file():
     if file:
         session["file_name"] = file.filename
         file.save(os.path.join(app.config['UPLOAD_FOLDER'], file.filename))
-        return redirect(url_for('check_data_format'))
+        content = "Correct input file!"
+        well_formed = check_well_formed_xml(file.filename)
+        if check_well_formed_xml(file.filename) is not None:
+            content = well_formed
+        else:
+            validation = validate_elements(file.filename)
+            if validation is not None:
+                content = validation
+        return render_template("check_data_format.html", content=content)
+
 
 @app.route("/FROM_check_data_format_TO_why_fhir", methods=["POST"])
 def from_check_data_format_to_why_fhir():
@@ -292,22 +303,20 @@ def run_qc_form():
     try:
         standard = session.get("standard")
         input_file = session.get("file_name")
-        session["graphs_done"] = False
+        url = session.get("url")
         print(standard)
         if standard == "fhir":
-            fire()
-            session["graphs_done"] = True
+            fhir_process = threading.Thread(target=fire, name="FHIR", args=[url, input_file])
+            fhir_process.start()
             return render_template('dashboard_graphs_fhir.html', standard=standard)
         elif standard == "omop":
             ohdsi = session.get("ohdsi")
             graphs = omop_workflow(ohdsi, input_file)
-            session["graphs_done"] = True
             return render_template('dashboard_graphs_omop.html', graphs=graphs, standard=standard)
         elif standard == "both":
-            graphs = fire()
+            graphs = fire(url, input_file)
             ohdsi = session.get("ohdsi")
             omop_workflow(ohdsi, input_file)
-            session["graphs_done"] = True
             return render_template('dashboard_graphs_fhir.html', graphs=graphs, standard=standard)
     except Exception as e:
         print(f"Error: {e}")
@@ -318,9 +327,9 @@ def go_to_dashboard_fhir():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_fhir'):
+    for file_name in os.listdir('graphs/fhir'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_fhir', file_name)) as f:
+            with open(os.path.join('graphs/fhir', file_name)) as f:
                 graphs.append(json.load(f))
 
     standard = session.get("standard")
@@ -333,9 +342,9 @@ def go_to_dashboard_omop():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_omop'):
+    for file_name in os.listdir('graphs/omop'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_omop', file_name)) as f:
+            with open(os.path.join('graphs/omop', file_name)) as f:
                 graphs.append(json.load(f))
 
     standard = session.get("standard")
@@ -352,9 +361,9 @@ def view_graphs_fhir():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_fhir'):
+    for file_name in os.listdir('graphs/fhir'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_fhir', file_name)) as f:
+            with open(os.path.join('graphs/fhir', file_name)) as f:
                 graphs.append(json.load(f))
 
     standard = session.get("standard")
@@ -388,9 +397,9 @@ def view_graphs_omop():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_omop'):
+    for file_name in os.listdir('graphs/omop'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_omop', file_name)) as f:
+            with open(os.path.join('graphs/omop', file_name)) as f:
                 graphs.append(json.load(f))
 
     standard = session.get("standard")
@@ -415,10 +424,7 @@ def view_failures_omop():
     return render_template("dashboard_failures_omop.html", tables=tables, standard=session.get("standard"))
 
 # graphs generation
-def fire():
-    url = session.get("url")
-    file_name = session.get("file_name")
-
+def fire(url, file_name):
     # server
     smart_client = provide_server_connection(url)
 
@@ -474,11 +480,11 @@ def fire():
 
     # TODO chatGPT
     # Directory to store the JSON files
-    os.makedirs('plotly_graphs_fhir', exist_ok=True)
+    os.makedirs('graphs/fhir', exist_ok=True)
 
     # Save each graph as a separate JSON file
     for i, graph_json in enumerate(graphs):
-        with open(f'plotly_graphs_fhir/graph_{i}.json', 'w') as f:
+        with open(f'graphs/fhir/graph_{i}.json', 'w') as f:
             json.dump(graph_json, f)
 
     # create report
@@ -546,11 +552,11 @@ def omop_workflow(ohdsi, input_file):
 
     # TODO chatGPT
     # Directory to store the JSON files
-    os.makedirs('plotly_graphs_omop', exist_ok=True)
+    os.makedirs('graphs/omop', exist_ok=True)
 
     # Save each graph as a separate JSON file
     for i, graph_json in enumerate(graphs):
-        with open(f'plotly_graphs_omop/graph_{i}.json', 'w') as f:
+        with open(f'graphs/omop/graph_{i}.json', 'w') as f:
             json.dump(graph_json, f)
 
     # create report
@@ -618,10 +624,6 @@ def check_database_connection(params):
     except Exception as e:
         return e
 
-# TODO
-def format_check():
-     pass
-
 
 def create_zip_graphs(files_path):
     # Create an in-memory ZIP file
@@ -643,7 +645,7 @@ def create_zip_graphs(files_path):
 
 @app.route('/download_graphs_fhir_zip')
 def download_graphs_fhir_zip():
-    files_path = os.path.join(os.getcwd(), "plotly_graphs_fhir")
+    files_path = os.path.join(os.getcwd(), "graphs/fhir")
     # Generate the ZIP file containing existing files
     zip_buffer = create_zip_graphs(files_path)
 
@@ -652,7 +654,7 @@ def download_graphs_fhir_zip():
 
 @app.route('/download_graphs_omop_zip')
 def download_graphs_omop_zip():
-    files_path = os.path.join(os.getcwd(), "plotly_graphs_omop")
+    files_path = os.path.join(os.getcwd(), "graphs/omop")
     # Generate the ZIP file containing existing files
     zip_buffer = create_zip_graphs(files_path)
 
@@ -705,16 +707,75 @@ def download_failures_omop_zip():
     return send_file(zip_buffer, as_attachment=True, download_name="failures_omop.zip", mimetype='application/zip')
 
 
-@app.route('/check_graphs_done')
-def check_graphs_done():
-    graphs_done = session.get("graphs_done")
+@app.route('/check_graphs_done_fhir')
+def check_graphs_done_fhir():
     graphs = []
 
     # Load all JSON files from the directory
-    for file_name in os.listdir('plotly_graphs_fhir'):
+    for file_name in os.listdir('graphs/fhir'):
         if file_name.endswith('.json'):
-            with open(os.path.join('plotly_graphs_fhir', file_name)) as f:
+            with open(os.path.join('graphs/fhir', file_name)) as f:
                 graphs.append(json.load(f))
+
+    if len(graphs) != 16:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "graphs" : graphs
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
+@app.route('/check_failures_done_fhir')
+def check_failures_done_fhir():
+    data_path = './reports/fhir'  # Directory containing CSV files
+    csv_files = [f for f in os.listdir(data_path) if f.endswith('.csv')]
+
+    tables = []
+    for file in csv_files:
+        file_path = os.path.join(data_path, file)
+        df = pd.read_csv(file_path)  # Read CSV file
+        table_html = df.to_html(classes='table table-striped', index=False)  # Convert DataFrame to HTML
+        # tables.append({
+        #     'filename': file,
+        #     'table': table_html
+        # })
+        # TODO
+        tables.append(table_html)
+
+    print(len(tables))
+    # TODO proč jich je 15?
+    if len(tables) != 15:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "tables" : tables
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
+@app.route('/check_graphs_done_omop')
+def check_graphs_done_omop():
+    graphs = []
+
+    # Load all JSON files from the directory
+    for file_name in os.listdir('graphs/omop'):
+        if file_name.endswith('.json'):
+            with open(os.path.join('graphs/omop', file_name)) as f:
+                graphs.append(json.load(f))
+
+    if len(graphs) != 35:
+        graphs_done = False
+    else:
+        graphs_done = True
 
     data = {
         "response" : graphs_done,

@@ -50,32 +50,8 @@
         </div>
         <div class="main-content">
             <h1>FHIR failures</h1>
-            <div>
-                {% for table in tables %}
-                <div>
-                    <div>
-                        <h2>{{ table.filename }}</h2>
-                    </div>
-                    <div>
-                        {{ table.table | safe }}  <!-- Display the HTML table -->
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
         </div>
     </div>
-    <script>
-        if (standard != "both") {
-            document.getElementById("view_dashboard").remove();
-        }
-
-        function downloadGraphsFhirZIP() {
-            window.location.href = '/download_graphs_fhir_zip';
-        }
-
-        function downloadFailuresFhirZIP() {
-            window.location.href = '/download_failures_fhir_zip';
-        }
-    </script>
+    <script src="{{ url_for('static', filename='js/dashboard_graphs_fhir.js') }}"></script>
 </body>
 </html>
