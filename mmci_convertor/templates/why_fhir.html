@@ -8,8 +8,19 @@
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
         <header>Why you should use FHIR?</header>
-        <div>
-            insert bullet points list of benefits
+        <div class="benefits-list">
+            <ul>
+                <li>The use case of the data is data exchange</li>
+                <li>The user doesn't have a license for SNOMED CT</li>
+                <li>Tech stack of FHIR: server with RESTfull API,
+                    and data are stored in Resources - JSON and XML formats</li>
+                <li>The user have additional data that needs conversion as well,
+                    then it is usually faster and more developer friendly in FHIR</li>
+                <li>The smaller size of the data set</li>
+                <li>The data should be used for interoperability, not for final storage.</li>
+                <li>The user need to customize the input data and minimize data loss</li>
+                <li>It is necessary to add custom constraints</li>
+            </ul>
         </div>
         <div class="bruh">
             <form action="/FROM_why_fhir_TO_about_qc_fhir" method="POST">

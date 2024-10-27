@@ -123,3 +123,9 @@ button {
 .second {
     left: 85%;
 }
+
+.benefits-list {
+    text-align: start;
+    padding-right: 20px;
+    padding-left: 80px;
+}
