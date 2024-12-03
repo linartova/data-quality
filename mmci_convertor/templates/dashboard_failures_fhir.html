@@ -8,16 +8,11 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='dashboard.css') }}">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 </head>
-<body onload="checkStandard({{ standard }})">
+<body onload="checkStandard({{ standard }}, {{ extra }})">
     <div class="container">
         <div class="sidebar">
                 <h2>FHIR dashboard</h2>
                 <ul>
-                    <li>
-                        <form action="/view_reports_fhir" method="POST">
-                            <button type="submit" class="view">View reports</button>
-                        </form>
-                    </li>
                     <li>
                         <form action="/view_graphs_fhir" method="POST">
                             <button type="submit" class="view">View graphs</button>
@@ -31,16 +26,18 @@
                 </ul>
                 <ul>
                     <li>
-                        <button class="view">Export reports</button>
+                        <button class="view" onclick="downloadGraphsFhirZIP()">Download graphs</button>
                     </li>
                     <li>
-                        <button class="view" onclick="downloadGraphsFhirZIP()">Export graphs</button>
-                    </li>
-                    <li>
-                        <button class="view" onclick="downloadFailuresFhirZIP()">Export failures</button>
+                        <button class="view" onclick="downloadFailuresFhirZIP()">Download failures</button>
                     </li>
                 </ul>
                 <ul>
+                    <li id="view_dashboard_extra">
+                        <form action="/go_to_dashboard_fhir_extra" method="POST">
+                            <button type="submit" name="action" class="view">View FHIR extra dashboard</button>
+                        </form>
+                    </li>
                     <li id="view_dashboard" style="border-bottom: 4px solid white; padding-bottom: 16px;">
                         <form action="/go_to_dashboard_omop" method="POST">
                             <button type="submit" name="action" class="view">View OMOP dashboard</button>
@@ -48,10 +45,11 @@
                     </li>
                 </ul>
         </div>
-        <div class="main-content">
+        <div class="main-content" id="main-content">
             <h1>FHIR failures</h1>
+            <div class="progress-bar" id="progress-bar"></div>
         </div>
     </div>
-    <script src="{{ url_for('static', filename='js/dashboard_graphs_fhir.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard_failures_fhir.js') }}"></script>
 </body>
 </html>

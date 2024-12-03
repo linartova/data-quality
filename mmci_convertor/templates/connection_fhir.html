@@ -10,6 +10,9 @@
         <header>Connection result</header>
         <div>{{content}}</div>
         <div class="bruh">
+            <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
+                <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
+            </a>
             <form action="/connection_fhir_form" method="POST">
                 <button type="submit" name="action" class="light corner first" value="back">Back</button>
                 <button type="submit" name="action" class="dark corner second" value="next">Next</button>

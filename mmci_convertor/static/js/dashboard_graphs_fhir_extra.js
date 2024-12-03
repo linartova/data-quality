@@ -1,14 +1,14 @@
-function downloadGraphsFhirZIP() {
-    window.location.href = '/download_graphs_omop_zip';
+function downloadGraphsFhirExtraZIP() {
+    window.location.href = '/download_graphs_fhir_zip_extra';
 }
 
-function downloadFailuresFhirZIP() {
-    window.location.href = '/download_failures_omop_zip';
+function downloadFailuresFhirExtraZIP() {
+    window.location.href = '/download_failures_fhir_zip_extra';
 }
 
 function pollSessionValue() {
     const intervalId = setInterval(() => {
-        fetch('/check_graphs_done_omop')
+        fetch('/check_graphs_done_fhir_extra')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -26,6 +26,7 @@ function pollSessionValue() {
                     addNewDiv(graphs);
                     clearInterval(intervalId);
                 }
+                console.log(done);
             })
             .catch(error => console.error('Error:', error));
     }, 1000);
@@ -33,7 +34,7 @@ function pollSessionValue() {
 
 function addProgressBar(count) {
     const progressBar = document.getElementById("progress-bar");
-    progressBar.textContent = count.toString().concat(" out of 16 graphs finished. Please wait.")
+    progressBar.textContent = count.toString().concat(" out of 33 graphs finished. Please wait.")
 }
 
 function addNewDiv(graphs) {

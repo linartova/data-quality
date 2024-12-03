@@ -45,8 +45,11 @@ def create_specimen_data_frame(server):
             dict["meta_versionId"] = meta["versionId"]
             dict["meta_lastUpdated"] = meta["lastUpdated"]
 
-            type_ = dict.pop("type")
-            dict["type_text"] = type_["text"]
+            # type
+            type = dict.pop("type")
+            type_coding = type.pop("coding").pop()
+            type_display = type_coding.pop("display")
+            dict["type_text"] = type_display
 
             collection = dict.pop("collection")
             dict["collection_collectedDateTime"] = collection["collectedDateTime"]

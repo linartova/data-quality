@@ -81,18 +81,18 @@
                                 <Dataelement_10_2 name="Date of start of pharamacotherapy">6</Dataelement_10_2>
                                 <Dataelement_11_2 name="Date of end of pharamcotherapy">30</Dataelement_11_2>
                                 <Dataelement_59_5 name="Scheme of pharmacotherapy">Other</Dataelement_59_5>
-				<Dataelement_81_3 name="Other pharmacotherapy scheme">FOLFOX4 (Onyx)</Dataelement_81_3>
+				                <Dataelement_81_3 name="Other pharmacotherapy scheme">FOLFOX4 (Onyx)</Dataelement_81_3>
                             </Form3>
                         </LogitudinalData>
                     </Event>
-		    <Event name="5" eventtype="Response to therapy">
-			<LogitudinalData>
-			    <Form4 name="form_31_ver-2">
-				<Dataelement_33_1 name="Specific response">Specific response - Complete response</Dataelement_33_1>
-				<Dataelement_34_1 name="Date response was obtained in weeks since initial diagnosis">30</Dataelement_34_1>
-			    </Form4>
-			</LogitudinalData>
-            </Event>
+		            <Event name="5" eventtype="Response to therapy">
+			            <LogitudinalData>
+			                <Form4 name="form_31_ver-2">
+				                <Dataelement_33_1 name="Specific response">Specific response - Complete response</Dataelement_33_1>
+				                <Dataelement_34_1 name="Date response was obtained in weeks since initial diagnosis">30</Dataelement_34_1>
+			                </Form4>
+			            </LogitudinalData>
+                    </Event>
                 </Events>
             </Location>
         </Locations>

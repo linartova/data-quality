@@ -11,13 +11,25 @@
         <div>
             <div class="db-title">Drop the data file </div>
 
+            <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
+                <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
+            </a>
+
             <!--chatgpt generated code - the form part -->
-            <form action="/FROM_provide_data_TO_check_data_format" method="POST" enctype="multipart/form-data">
+            <form action="/FROM_provide_data_TO_check_data_format" method="POST" method="GET" enctype="multipart/form-data">
                 <label for="file">Choose file from your local disk:</label>
                 <input type="file" id="file" name="file"><br><br>
+
+                <!-- Add icon library
+                https://www.w3schools.com/howto/howto_css_download_button.asp
+                -->
+                <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+                <!-- Auto width -->
+
                 <button type="submit" name="action" class="corner dark second" value="go">Upload</button>
             </form>
         </div>
     </div>
+    <script src="{{ url_for('static', filename='js/download.js') }}"></script>
 </body>
 </html>

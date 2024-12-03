@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Convector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='qc_documentation.css') }}" >
+</head>
+<body class="qc">
+    <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <header>Quality checks documentation:</header>
+        <div>
+
+            <input type="text" id="search-bar" placeholder="Search content..." onkeyup="filterContent()">
+
+    <div id="content-list">
+        <ul>
+        {% for item in content_data %}
+            <div class="content-item" id="{{ loop.index }}">
+                <li style="list-style-type:none;">
+                <h3>{{ item.Number }}. {{ item.Name }}</h3>
+                <div><b>Description:</b> {{ item.Description }}</div>
+                <div><b>Dataelements:</b>
+                    <ul>
+                    {% for element in item.Dataelement %}
+                        <li>
+                            <div>
+                                <p><b>Name:</b>{{ element.name }}</p>
+                                <p><b>dataelement_id:</b> {{ element.dataelement_id }}</p>
+                            </div>
+                        </li>
+                    {% endfor %}
+                    </ul>
+                </div>
+                <div><b>Implementation in FHIR:</b> {{ item.FHIR }}</div>
+                <div><b>Implementation in extra FHIR:</b> {{ item.extra_FHIR }}</div>
+                <div><b>Implementation in extra OMOP:</b> {{ item.OMOP }}</div>
+                </li>
+            </div>
+        {% endfor %}
+        </ul>
+    </div>
+        </div>
+        <div class="bruh">
+            <div>
+                <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
+                    <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
+                </a>
+                <form action="/FROM_qc_documentation_TO_choose_your_path" method="POST">
+                    <button type="submit" class="dark corner">Next</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/qc_documentation.js') }}"></script>
+</body>
+</html>

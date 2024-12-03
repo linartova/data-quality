@@ -528,7 +528,7 @@ def sus_short_pharma(cdf, ddf):
     """
     Warning # 25
     Original warning type:
-    "Suspiciously short pharma therapy - less than 1 week (may be false positive)"
+    "Suspiciously short pharma therapy - less than 1 week (maybe false positive)"
 
     :param cdf: Condition Occurrence data frame.
     :param ddf: Drug Exposure data frame.

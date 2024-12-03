@@ -1,7 +1,3 @@
-//if (standard != "both") {
-//    document.getElementById("view_dashboard").remove();
-//}
-
 function downloadGraphsFhirZIP() {
     window.location.href = '/download_graphs_fhir_zip';
 }

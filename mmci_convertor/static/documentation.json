@@ -1,0 +1,359 @@
+[
+  {
+    "Number": 1,
+    "Name": "Vital check date precedes initial diagnosis date",
+    "Description": "Substract 'Timestamp of last update of vital status' from 'Date of diagnosis', if the result is negative, then 'Timestamp of last update of vital status' precedes 'Date of diagnosis', which is suspicious.",
+    "Dataelement": [
+      {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
+      {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Values are compared, not subtracted.",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 2,
+    "Name": "Vital check date is equal to initial diagnosis date",
+    "Description": "Substract 'Timestamp of last update of vital status' from 'Date of diagnosis', if the result is equal to zero, then 'Timestamp of last update of vital status' equals 'Date of diagnosis', which is suspicious.",
+    "Dataelement": [
+      {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
+      {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Values are compared, not subtracted.",
+    "OMOP": "Equivalent"
+  },
+    {"Number": 3,
+    "Name": "Suspicious survival information",
+    "Description": "Check if 'Timestamp of last update of vital status' and 'Date of diagnosis', are in correct order. Then 'Overall survival status' is divided by weeks between those two dates and result larger than 3 is suspicious.",
+    "Dataelement": [
+      {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
+      {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"},
+      {"name": "Overall survival status", "dataelement_id": "Dataelement_7_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 4,
+    "Name": "Suspiciously young patient",
+    "Description": "Filter patients younger than 15. Compare 'Age at diagnosis (rounded to years)' to 15.",
+    "Dataelement": [
+      {"name": "Age at diagnosis (rounded to years)", "dataelement_id": "Dataelement_3_1"}
+    ],
+    "FHIR": "The 'Age at diagnosis (rounded to years)' is not directly mapped to FHIR, so it works with 'onsetDateTime' (originally 'Date of diagnosis') and 'birth_date'. Other functionality stays the same.",
+    "extra_FHIR": "Implemented in FHIR.",
+    "OMOP": "Similarly, as in FHIR, age is computed from 'condition_start_date' and 'year_of_birth'. Other functionality stays the same."
+  },
+  {
+    "Number": 5,
+    "Name": "Suspiciously long survival",
+    "Description": "Filter patients with 'Overall survival status' larger than 4000 or patient was diagnosed under age of 95 and lived 100 years and more.",
+    "Dataelement": [
+      {"name": "Age at diagnosis (rounded to years)", "dataelement_id": "Dataelement_3_1"},
+      {"name": "Overall survival status", "dataelement_id": "Dataelement_7_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 6,
+    "Name": "Vital status timestamp missing",
+    "Description": "Filter 'Vital status' with 'UNKNOWN' value and 'Timestamp of last update of vital status' with null value.",
+    "Dataelement": [
+      {"name": "Vital status", "dataelement_id": "Dataelement_5_2"},
+      {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 7,
+    "Name": "Vital status timestamp is in the future",
+    "Description": "Filter null values 'Timestamp of last update of vital status', then filter future dates.",
+    "Dataelement": [
+      {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 8,
+    "Name": "Initial diagnosis date is in the future",
+    "Description": "Filter null values 'Timestamp of last update of vital status', then filter future dates.",
+    "Dataelement": [
+      {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"}
+    ],
+    "FHIR": "Equivalent",
+    "extra_FHIR": "Implemented in FHIR.",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 9,
+    "Name": "Pharmacotherapy scheme description is missing while pharmacotherapy scheme is Other",
+    "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is missing.",
+    "Dataelement": [
+      {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
+      {"name": "Other pharmacotherapy scheme", "dataelement_id": "Dataelement_81_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 10,
+    "Name": "Suspicious description of pharmacotherapy",
+    "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: 'No pharmacotherapy', 'other', 'unknown', 'NULL'.",
+    "Dataelement": [
+      {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
+      {"name": "Other pharmacotherapy scheme", "dataelement_id": "Dataelement_81_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent, but also check the values from warning #11"
+  },
+  {
+    "Number": 11,
+    "Name": "Missing specification of used substances in pharmacotherapy description",
+    "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: 'neoadjuvante Radiochemo', 'Substances: unbekannt'.",
+    "Dataelement": [
+      {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
+      {"name": "Other pharmacotherapy scheme", "dataelement_id": "Dataelement_81_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent, but also check the values from warning #10"
+  },
+  {
+    "Number": 12,
+    "Name": "Suspicious characters or words in description of pharmacotherapy",
+    "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: '%-FU', 'andLeucovorin'.",
+    "Dataelement": [
+      {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
+      {"name": "Other pharmacotherapy scheme", "dataelement_id": "Dataelement_81_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 13,
+    "Name": "Surgery and histological location do not match",
+    "Description": "Filter patients with only one surgery and check if surgery location and histopathology location match.",
+    "Dataelement": [
+      {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"},
+      {"name": "Localization of primary tumor", "dataelement_id": "Dataelement_92_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 14,
+    "Name": "Surgery and histological location do not match (but multiple surgeries per patient)",
+    "Description": "Filter patients with multiple surgeries and check if surgery location and histopathology location match.",
+    "Dataelement": [
+      {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"},
+      {"name": "Localization of primary tumor", "dataelement_id": "Dataelement_92_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 15,
+    "Name": "Mismatch between surgery location and surgery type",
+    "Description": "Check if surgery type match location of the tumor and filter suspicious records.",
+    "Dataelement": [
+      {"name": "Surgery type", "dataelement_id": "Dataelement_49_1"},
+      {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 16,
+    "Name": "Negative event (treatment/response) duration: end time is before start time",
+    "Description": "In radiation therapy, targeted therapy and pharmacotherapy filter rows where end of therapy precedes start.",
+    "Dataelement": [
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Implemented equivalent for Radiation Therapy and Targeted Therapy",
+    "OMOP": "Implemented equivalent for Pharmacotherapy"
+  },
+  {
+    "Number": 17,
+    "Name": "Event (treatment/response) starts or ends after survival of patient",
+    "Description": "Check if dataelement representing number of weeks since initial diagnosis is lower than calculated adjusted_overall_survival (= overall_survival + first treatment for patient if there is any, otherwise only overall_survival).",
+    "Dataelement": [
+      {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"},
+      {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing pharmacotherapy. Changed, overall_survival is saved as float, so dates are converted on number of weeks since diagnosis.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 18,
+    "Name": "Start of response to therapy is before diagnosis",
+    "Description": "Check if dataelement representing number of weeks since initial diagnosis is negative.",
+    "Dataelement": [
+      {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Changed, response start is saved as date and must be compared with date of diagnosis.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 19,
+    "Name": "Suspect incomplete followup: patient died of colon cancer while last response to therapy is 'Complete response'",
+    "Description": "Filter last responses for each patient. Filter patients with 'Vital status' equals to 'DEATH_COLON_CANCER' and response equals to 'Complete response'.",
+    "Dataelement": [
+      {"name": "Specific response", "dataelement_id": "Dataelement_33_1"},
+      {"name": "Vital status", "dataelement_id": "Dataelement_5_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Partial. Since the information, what was the cause of death, is missing, all death patients are checking on 'Complete response'.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 20,
+    "Name": "Start of response to therapy is in the future",
+    "Description": "Start of response is represented as number of weeks since initial diagnosis. So date of diagnosis is added to start of response and result is compared with today.",
+    "Dataelement": [
+      {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"},
+      {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Changed, start is saved as date and must be compared with date of diagnosis.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 21,
+    "Name": "Start of therapy is before diagnosis",
+    "Description": "In surgery, radiation therapy, targeted therapy and pharmacotherapy filter rows where start of therapy, represented by number of weeks since initial diagnosis, is negative.",
+    "Dataelement": [
+      {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Only for Dataelement_8_3, Dataelement_12_4, Dataelement_35_3. Changed, start is saved as date and must be compared with date of diagnosis.",
+    "OMOP": "Only for Dataelement_8_3, Dataelement_12_4, Dataelement_10_2. Changed, start is saved as date and must be compared with date of diagnosis."
+  },
+  {
+    "Number": 22,
+    "Name": "Start of treatment is in the future",
+    "Description": "Start of treatment is represented as number of weeks since initial diagnosis. So date of diagnosis is added to start of treatment and result is compared with today.",
+    "Dataelement": [
+      {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Changed, start is saved as date and must be compared directly. Only for Dataelement_8_3, Dataelement_12_4, Dataelement_35_3.",
+    "OMOP": "Changed, start is saved as date and must be compared directly. Only for Dataelement_8_3, Dataelement_12_4, Dataelement_10_2."
+  },
+  {
+    "Number": 23,
+    "Name": "End of treatment is in the future",
+    "Description": "End of treatment is represented as number of weeks since initial diagnosis. So date of diagnosis is added to end of treatment and result is compared with today.",
+    "Dataelement": [
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Changed, end is saved as date and must be compared directly. Only for Dataelement_13_2, Dataelement_36_1.",
+    "OMOP": "Changed, start is saved as date and must be compared directly. Only for Dataelement_11_2."
+  },
+  {
+    "Number": 24,
+    "Name": "Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)",
+    "Description": "Filter therapies when start and end equal 0.",
+    "Dataelement": [
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Changed, starts and ends are saved as date and must be compared with date of diagnosis. Only for targeted therapy and radiation therapy.",
+    "OMOP": "Changed, starts and ends are saved as date and must be compared with date of diagnosis. Only for pharmacotherapy."
+  },
+  {
+    "Number": 25,
+    "Name": "Suspiciously short pharma therapy - less than 1 week (may be false positive)",
+    "Description": "Check if the duration of pharmacotherapy is less than 1 week by subtracting the end and start dates of pharmacotherapy.",
+    "Dataelement": [
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": 26,
+    "Name": "Mismatch between provided and computed stage value",
+    "Description": "Filter null values and then check if the provided UICC stage equals the computed UICC stage.",
+    "Dataelement": [
+      {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
+      {"name": "Regional lymph nodes", "dataelement_id": "Dataelement_77_1"},
+      {"name": "Distant metastasis", "dataelement_id": "Dataelement_75_1"},
+      {"name": "Stage", "dataelement_id": "Dataelement_70_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 27,
+    "Name": "Suspicious TNM value combination for given UICC version (e.g., N2a for UICC version 6) or uncomputable UICC stage",
+    "Description": "Check if the UICC stage is computable.",
+    "Dataelement": [
+      {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
+      {"name": "Regional lymph nodes", "dataelement_id": "Dataelement_77_1"},
+      {"name": "Distant metastasis", "dataelement_id": "Dataelement_75_1"},
+      {"name": "Stage", "dataelement_id": "Dataelement_70_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": 28,
+    "Name": "pNX provided in TNM values, while UICC stage is determined (how?)",
+    "Description": "Filter null values and then check if 'Primary Tumor' = NX while 'Stage' is not null or 'IV', 'IVA', 'IVB'.",
+    "Dataelement": [
+      {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
+      {"name": "Regional lymph nodes", "dataelement_id": "Dataelement_77_1"},
+      {"name": "Distant metastasis", "dataelement_id": "Dataelement_75_1"},
+      {"name": "Stage", "dataelement_id": "Dataelement_70_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  }
+]

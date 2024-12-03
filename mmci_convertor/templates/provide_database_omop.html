@@ -7,6 +7,9 @@
 </head>
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
+        <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
+            <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
+        </a>
         <form action="/FROM_provide_database_omop_TO_connection_omop" method="POST" enctype="multipart/form-data">
         <header>Provide data for OMOP conversion</header>
         <div>

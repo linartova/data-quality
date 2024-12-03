@@ -9,8 +9,8 @@ from fhirclient.models.coding import Coding
 from fhirclient.models.fhirreference import FHIRReference
 from fhirclient.models.specimen import SpecimenCollection
 from fhirclient.models.identifier import Identifier
-from datetime import date
-from fhir_classes import *
+from datetime import datetime
+from fhir_classes import Specimen, Patient, Condition
 
 
 def provide_server_connection(url):
@@ -56,18 +56,25 @@ def read_xml_and_create_resources(file_name, smart):
                                                                    "BasicData").find(namespace +
                                                                                      "Form")
             sex = form.find(namespace + "Dataelement_85_1")
-            age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1")
+            age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
 
             # condition
             date_diagnosis = form.find(namespace + "Dataelement_51_3")
+            if date_diagnosis is not None:
+                date_diagnosis = date_diagnosis.text
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
             histopathology = find_histopathology(namespace, events)
+
+            # patient
+            diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
+            birth_date = FHIRDate(str(diagnosis.year - int(age_at_primary_diagnostic)))
+            patient = Patient(patient_id, sex.text, birth_date)
 
             # specimen
             specimens = find_specimens(namespace, events)
 
-            result.append([Patient(patient_id, sex.text, age_at_primary_diagnostic.text),
-                           Condition(histopathology.text, date_diagnosis.text),
+            result.append([patient,
+                           Condition(histopathology.text, date_diagnosis),
                            specimens])
     create_files(result, smart)
     return None
@@ -86,12 +93,46 @@ def find_specimens(namespace, events):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
 
             sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
-            year_of_sample_connection = sample.find(namespace + "Dataelement_89_3").text
+            year_of_sample_connection = int(sample.find(namespace + "Dataelement_89_3").text)
             sample_material_type = sample.find(namespace + "Dataelement_54_2").text
+            preservation_mode = sample.find(namespace + "Dataelement_55_2").text
+            identifier = sample.find(namespace + "Dataelement_56_2").text
 
-            result.append(Specimen(sample_material_type, year_of_sample_connection))
+            code, display = specimen_mapping(sample_material_type, preservation_mode)
+
+            result.append(Specimen(identifier, code, display, year_of_sample_connection))
     return result
 
+
+def specimen_mapping(sample_material_type, preservation_mode):
+    """
+    Map original value of "Material type" dataelement and "Preservation mode" dataelement into FHIR code and display.
+    Args:
+        sample_material_type: original value of "Material type"
+        preservation_mode: original value of "Preservation mode"
+
+    Returns: code and display values based on original value
+
+    """
+    if sample_material_type == "Tumor" and preservation_mode == "Cryopreservation":
+        return "tumor-tissue-frozen", "Tumor tissue (frozen)"
+    if sample_material_type == "Tumor" and preservation_mode == "FFPE":
+        return "tumor-tissue-ffpe", "Tumor tissue (FFPE)"
+    if sample_material_type == "Tumor" and preservation_mode == "Other":
+        return "tissue-other", "Other tissue storage"
+    if sample_material_type == "Healthy colon tissue" and preservation_mode == "Cryopreservation":
+        return "normal-tissue-frozen", "Normal tissue (frozen)"
+    if sample_material_type == "Healthy colon tissue" and preservation_mode == "FFPE":
+        return "normal-tissue-ffpe", "Normal tissue (FFPE)"
+    if sample_material_type == "Healthy colon tissue" and preservation_mode == "Other":
+        return "tissue-other", "Other tissue storage"
+    if sample_material_type == "Other" and preservation_mode == "Cryopreservation":
+        return "other-tissue-frozen", "Other tissue (frozen)"
+    if sample_material_type == "Other" and preservation_mode == "FFPE":
+        return "other-tissue-ffpe", "Other tissue (FFPE)"
+    if sample_material_type == "Other" and preservation_mode == "Other":
+        return "tissue-other", "Other tissue storage"
+    return None
 
 def find_histopathology(namespace, events):
     """
@@ -139,8 +180,7 @@ def create_patient(patient_info, smart_client):
         The url of Resource Patient.
     """
     patient = p.Patient()
-    year_of_birth = str(date.today().year - int(patient_info.age))
-    patient.birthDate = FHIRDate(year_of_birth)
+    patient.birthDate = patient_info.birth_date
     patient.gender = patient_info.sex
     patient.identifier = [Identifier()]
     patient.identifier[0].value = patient_info.identifier
@@ -165,7 +205,6 @@ def create_condition(condition_info, patient_id, smart_client):
     condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
     # Clinical Status
-    text = "Unknown"
 
     coding = Coding()
     coding.code = "unknown"
@@ -230,15 +269,31 @@ def create_specimen(patient_id, specimen_info, smart_client):
     """
     specimen = s.Specimen()
 
+    # identifier
+    identifier = s.identifier.Identifier()
+    identifier.value = specimen_info.identifier
+    specimen.identifier = [identifier]
+
+    # type.coding (code, display, system)
+    coding = Coding()
+    coding.code = specimen_info.sample_material_type_code
+    coding.display = specimen_info.sample_material_type_display
+    coding.system = "“https://fhir.bbmri.de/CodeSystem/SampleMaterialType"
+
+    type = codeAbleConcept.CodeableConcept()
+    type.coding = [coding]
+
+    specimen.type = type
+
     # collection collected
     collection = SpecimenCollection()
-    collection.collectedDateTime = FHIRDate(specimen_info.year_of_sample_connection)
+    collection.collectedDateTime = FHIRDate(str(specimen_info.year_of_sample_connection))
     specimen.collection = collection
 
     # type
-    type = codeAbleConcept.CodeableConcept()
-    type.text = specimen_info.sample_material_type
-    specimen.type = type
+    # type = codeAbleConcept.CodeableConcept()
+    # type.text = specimen_info.sample_material_type
+    # specimen.type = type
 
     # subject
     specimen.subject = FHIRReference({'reference': "Patient/" + patient_id})

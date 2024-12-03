@@ -22,7 +22,10 @@
             </ul>
         </div>
         <div class="bruh">
-            <form action="/FROM_why_omop_TO_about_qc_omop" method="POST">
+            <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
+                <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
+            </a>
+            <form action="/FROM_why_omop_TO_qc_documentation" method="POST">
                 <button name="action" type="submit" class="corner dark second">Next</button>
             </form>
         </div>

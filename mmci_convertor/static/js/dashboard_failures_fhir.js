@@ -1,7 +1,3 @@
-//if (standard != "both") {
-//    document.getElementById("view_dashboard").remove();
-//}
-
 function downloadGraphsFhirZIP() {
     window.location.href = '/download_graphs_fhir_zip';
 }
@@ -35,18 +31,19 @@ function pollSessionValue() {
 
 function addNewDiv(tables) {
     const container = document.getElementById("main-content");
+    const progressBar = document.getElementById("progress-bar");
+    progressBar.style.cssText = "display: none;";
     for (let i = 0; i < tables.length; i++) {
         const newDiv = document.createElement('div');
-        newDiv.id = "table".concat("-", i.toString());
+        const newDivId = "table".concat("-", i.toString());
+        newDiv.id = newDivId;
         newDiv.className = "table-container";
         newDiv.style.cssText = "height: 400px;";
         container.appendChild(newDiv);
 
-        const tableJson = tables.at(i);
-        const table = JSON.parse(tableJson);
-        const plotData = table.data;
-        const plotLayout = table.layout;
-        Plotly.newPlot('table'.concat("-", i.toString()), plotData, plotLayout);
+        const tableHTML = tables.at(i);
+        document.getElementById(newDivId).innerHTML = tableHTML;
+
     }
 }
 window.onload = function() {

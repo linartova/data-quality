@@ -7,16 +7,15 @@
 </head>
 <body>
     <div class="container--form step--3 body d-md-flex align-items-center justify-content-between">
-        <header>Connection result</header>
-        <div>{{content}}</div>
+        <header>Do you want to use extra FHIR mapping and quality checks?</header>
+        <div></div>
         <div class="bruh">
             <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
                 <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
             </a>
-            <form action="/connection_omop_form" method="POST">
-                <!-- TODO jenom jeden button, přepíná se podle úspěchu připojení -->
-                <button type="submit" name="action" class="light corner first" value="back">Back</button>
-                <button type="submit" name="action" class="dark corner second" value="continue">Continue</button>
+            <form action="/fhir_extra" method="POST">
+                <button type="submit" name="action" class="light corner first" value="no">No</button>
+                <button type="submit" name="action" class="dark corner second" value="yes">Yes</button>
             </form>
         </div>
     </div>

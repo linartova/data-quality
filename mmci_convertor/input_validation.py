@@ -1,6 +1,15 @@
 import xml.etree.ElementTree as ET
 
 def check_well_formed_xml(file_name):
+    """
+    Check if input file can be parsed.
+
+    Args:
+        file_name: Name of input file with data.
+
+    Returns: Error or nothing.
+
+    """
     try:
         # Attempt to parse the XML file
         ET.parse("uploads/" + file_name)
@@ -10,6 +19,21 @@ def check_well_formed_xml(file_name):
 
 
 def elements_out_of_order(root, expected_order, name, namespace):
+    """
+    Check if elements in root element contents all subelements in correct order.
+
+    Args:
+        root: Root element.
+        expected_order: Expected tags of subelements.
+        name: Name of controlled element.
+        namespace: Namespace used in input file.
+
+    Returns:
+        bool:
+            - True if subelements are in correct order.
+            - False if subelements are in incorrect order.
+
+    """
     name = namespace + name
     for i in range(len(expected_order)):
         expected_order[i] = namespace + expected_order[i]
@@ -27,6 +51,20 @@ def elements_out_of_order(root, expected_order, name, namespace):
 
 
 def elements_with_right_name(root, expected_tags, namespace):
+    """
+    Check if elements in root element contents all subelements with correct names.
+
+    Args:
+        root: Root element.
+        expected_tags: Expected tags of subelements with names.
+        namespace: Namespace used in input file.
+
+    Returns:
+        bool:
+            - True if subelements are with correct names.
+            - False if subelements are with incorrect names.
+
+    """
     for tag in expected_tags.keys():
         element = root.find(namespace + tag)
         if element is not None:
@@ -39,6 +77,15 @@ def elements_with_right_name(root, expected_tags, namespace):
     return True
 
 def validate_elements(file_name):
+    """
+    Check if file contains all needed elements.
+
+    Args:
+        file_name: Name of input file with data.
+
+    Returns: Nothing or message with wrong element.
+
+    """
     tree = ET.parse("uploads/" + file_name)
     root = tree.getroot()
     namespace = "{http://registry.samply.de/schemata/import_v1}"
