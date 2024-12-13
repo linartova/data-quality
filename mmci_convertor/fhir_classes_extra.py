@@ -186,6 +186,7 @@ class Record:
 
     Attributes:
         patient (Patient) : Class Patient for resource Patient.
+        recurrence (int): Recurrence diagnosis interval.
         time_observation (TimeObservation) : Class TimeObservation for resource Observation.
         responses (List[Response]) : List of classes Response for resource Observation.
         surgeries (List[Surgery]) : List of classes Surgery for resource Procedure.
@@ -195,8 +196,9 @@ class Record:
         condition (Condition) : Class Condition for resource Condition.
         specimens (List[Specimen]) : List of classes Specimen for resource Procedure.
     """
-    def __init__(self, patient, time_observation, responses, surgeries, radiations, targeteds, tnm, condition, specimens):
+    def __init__(self, patient, recurrence, time_observation, responses, surgeries, radiations, targeteds, tnm, condition, specimens):
         self.patient = patient
+        self.recurrence = recurrence
         self.time_observation = time_observation
         self.responses = responses
         self.surgeries = surgeries

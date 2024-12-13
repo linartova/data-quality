@@ -1,7 +1,7 @@
 [
   {
     "Number": 1,
-    "Name": "Vital check date precedes initial diagnosis date",
+    "Name": "Warning: Vital check date precedes initial diagnosis date",
     "Description": "Substract 'Timestamp of last update of vital status' from 'Date of diagnosis', if the result is negative, then 'Timestamp of last update of vital status' precedes 'Date of diagnosis', which is suspicious.",
     "Dataelement": [
       {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
@@ -13,7 +13,7 @@
   },
   {
     "Number": 2,
-    "Name": "Vital check date is equal to initial diagnosis date",
+    "Name": "Warning: Vital check date is equal to initial diagnosis date",
     "Description": "Substract 'Timestamp of last update of vital status' from 'Date of diagnosis', if the result is equal to zero, then 'Timestamp of last update of vital status' equals 'Date of diagnosis', which is suspicious.",
     "Dataelement": [
       {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
@@ -24,7 +24,7 @@
     "OMOP": "Equivalent"
   },
     {"Number": 3,
-    "Name": "Suspicious survival information",
+    "Name": "Warning: Suspicious survival information",
     "Description": "Check if 'Timestamp of last update of vital status' and 'Date of diagnosis', are in correct order. Then 'Overall survival status' is divided by weeks between those two dates and result larger than 3 is suspicious.",
     "Dataelement": [
       {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"},
@@ -37,7 +37,7 @@
   },
   {
     "Number": 4,
-    "Name": "Suspiciously young patient",
+    "Name": "Warning: Suspiciously young patient",
     "Description": "Filter patients younger than 15. Compare 'Age at diagnosis (rounded to years)' to 15.",
     "Dataelement": [
       {"name": "Age at diagnosis (rounded to years)", "dataelement_id": "Dataelement_3_1"}
@@ -48,7 +48,7 @@
   },
   {
     "Number": 5,
-    "Name": "Suspiciously long survival",
+    "Name": "Warning: Suspiciously long survival",
     "Description": "Filter patients with 'Overall survival status' larger than 4000 or patient was diagnosed under age of 95 and lived 100 years and more.",
     "Dataelement": [
       {"name": "Age at diagnosis (rounded to years)", "dataelement_id": "Dataelement_3_1"},
@@ -60,7 +60,7 @@
   },
   {
     "Number": 6,
-    "Name": "Vital status timestamp missing",
+    "Name": "Warning: Vital status timestamp missing",
     "Description": "Filter 'Vital status' with 'UNKNOWN' value and 'Timestamp of last update of vital status' with null value.",
     "Dataelement": [
       {"name": "Vital status", "dataelement_id": "Dataelement_5_2"},
@@ -72,7 +72,7 @@
   },
   {
     "Number": 7,
-    "Name": "Vital status timestamp is in the future",
+    "Name": "Warning: Vital status timestamp is in the future",
     "Description": "Filter null values 'Timestamp of last update of vital status', then filter future dates.",
     "Dataelement": [
       {"name": "Timestamp of last update of vital status", "dataelement_id": "Dataelement_6_3"}
@@ -83,7 +83,7 @@
   },
   {
     "Number": 8,
-    "Name": "Initial diagnosis date is in the future",
+    "Name": "Warning: Initial diagnosis date is in the future",
     "Description": "Filter null values 'Timestamp of last update of vital status', then filter future dates.",
     "Dataelement": [
       {"name": "Date of diagnosis", "dataelement_id": "Dataelement_51_3"}
@@ -94,7 +94,7 @@
   },
   {
     "Number": 9,
-    "Name": "Pharmacotherapy scheme description is missing while pharmacotherapy scheme is Other",
+    "Name": "Warning: Pharmacotherapy scheme description is missing while pharmacotherapy scheme is Other",
     "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is missing.",
     "Dataelement": [
       {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
@@ -106,7 +106,7 @@
   },
   {
     "Number": 10,
-    "Name": "Suspicious description of pharmacotherapy",
+    "Name": "Warning: Suspicious description of pharmacotherapy",
     "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: 'No pharmacotherapy', 'other', 'unknown', 'NULL'.",
     "Dataelement": [
       {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
@@ -118,7 +118,7 @@
   },
   {
     "Number": 11,
-    "Name": "Missing specification of used substances in pharmacotherapy description",
+    "Name": "Warning: Missing specification of used substances in pharmacotherapy description",
     "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: 'neoadjuvante Radiochemo', 'Substances: unbekannt'.",
     "Dataelement": [
       {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
@@ -130,7 +130,7 @@
   },
   {
     "Number": 12,
-    "Name": "Suspicious characters or words in description of pharmacotherapy",
+    "Name": "Warning: Suspicious characters or words in description of pharmacotherapy",
     "Description": "Filter pharmacotherapies where 'Scheme of pharmacotherapy' is equal to 'Other' and 'Other pharmacotherapy scheme' is equal to one of the following values: '%-FU', 'andLeucovorin'.",
     "Dataelement": [
       {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"},
@@ -142,7 +142,7 @@
   },
   {
     "Number": 13,
-    "Name": "Surgery and histological location do not match",
+    "Name": "Warning: Surgery and histological location do not match",
     "Description": "Filter patients with only one surgery and check if surgery location and histopathology location match.",
     "Dataelement": [
       {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"},
@@ -154,7 +154,7 @@
   },
   {
     "Number": 14,
-    "Name": "Surgery and histological location do not match (but multiple surgeries per patient)",
+    "Name": "Warning: Surgery and histological location do not match (but multiple surgeries per patient)",
     "Description": "Filter patients with multiple surgeries and check if surgery location and histopathology location match.",
     "Dataelement": [
       {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"},
@@ -166,7 +166,7 @@
   },
   {
     "Number": 15,
-    "Name": "Mismatch between surgery location and surgery type",
+    "Name": "Warning: Mismatch between surgery location and surgery type",
     "Description": "Check if surgery type match location of the tumor and filter suspicious records.",
     "Dataelement": [
       {"name": "Surgery type", "dataelement_id": "Dataelement_49_1"},
@@ -178,7 +178,7 @@
   },
   {
     "Number": 16,
-    "Name": "Negative event (treatment/response) duration: end time is before start time",
+    "Name": "Warning: Negative event (treatment/response) duration: end time is before start time",
     "Description": "In radiation therapy, targeted therapy and pharmacotherapy filter rows where end of therapy precedes start.",
     "Dataelement": [
       {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
@@ -194,7 +194,7 @@
   },
   {
     "Number": 17,
-    "Name": "Event (treatment/response) starts or ends after survival of patient",
+    "Name": "Warning: Event (treatment/response) starts or ends after survival of patient",
     "Description": "Check if dataelement representing number of weeks since initial diagnosis is lower than calculated adjusted_overall_survival (= overall_survival + first treatment for patient if there is any, otherwise only overall_survival).",
     "Dataelement": [
       {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
@@ -212,7 +212,7 @@
   },
   {
     "Number": 18,
-    "Name": "Start of response to therapy is before diagnosis",
+    "Name": "Warning: Start of response to therapy is before diagnosis",
     "Description": "Check if dataelement representing number of weeks since initial diagnosis is negative.",
     "Dataelement": [
       {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"}
@@ -223,7 +223,7 @@
   },
   {
     "Number": 19,
-    "Name": "Suspect incomplete followup: patient died of colon cancer while last response to therapy is 'Complete response'",
+    "Name": "Warning: Suspect incomplete followup: patient died of colon cancer while last response to therapy is 'Complete response'",
     "Description": "Filter last responses for each patient. Filter patients with 'Vital status' equals to 'DEATH_COLON_CANCER' and response equals to 'Complete response'.",
     "Dataelement": [
       {"name": "Specific response", "dataelement_id": "Dataelement_33_1"},
@@ -235,7 +235,7 @@
   },
   {
     "Number": 20,
-    "Name": "Start of response to therapy is in the future",
+    "Name": "Warning: Start of response to therapy is in the future",
     "Description": "Start of response is represented as number of weeks since initial diagnosis. So date of diagnosis is added to start of response and result is compared with today.",
     "Dataelement": [
       {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"},
@@ -247,7 +247,7 @@
   },
   {
     "Number": 21,
-    "Name": "Start of therapy is before diagnosis",
+    "Name": "Warning: Start of therapy is before diagnosis",
     "Description": "In surgery, radiation therapy, targeted therapy and pharmacotherapy filter rows where start of therapy, represented by number of weeks since initial diagnosis, is negative.",
     "Dataelement": [
       {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
@@ -261,7 +261,7 @@
   },
   {
     "Number": 22,
-    "Name": "Start of treatment is in the future",
+    "Name": "Warning: Start of treatment is in the future",
     "Description": "Start of treatment is represented as number of weeks since initial diagnosis. So date of diagnosis is added to start of treatment and result is compared with today.",
     "Dataelement": [
       {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
@@ -275,7 +275,7 @@
   },
   {
     "Number": 23,
-    "Name": "End of treatment is in the future",
+    "Name": "Warning: End of treatment is in the future",
     "Description": "End of treatment is represented as number of weeks since initial diagnosis. So date of diagnosis is added to end of treatment and result is compared with today.",
     "Dataelement": [
       {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
@@ -288,7 +288,7 @@
   },
   {
     "Number": 24,
-    "Name": "Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)",
+    "Name": "Warning: Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)",
     "Description": "Filter therapies when start and end equal 0.",
     "Dataelement": [
       {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
@@ -304,7 +304,7 @@
   },
   {
     "Number": 25,
-    "Name": "Suspiciously short pharma therapy - less than 1 week (may be false positive)",
+    "Name": "Warning: Suspiciously short pharma therapy - less than 1 week (may be false positive)",
     "Description": "Check if the duration of pharmacotherapy is less than 1 week by subtracting the end and start dates of pharmacotherapy.",
     "Dataelement": [
       {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
@@ -316,7 +316,7 @@
   },
   {
     "Number": 26,
-    "Name": "Mismatch between provided and computed stage value",
+    "Name": "Warning: Mismatch between provided and computed stage value",
     "Description": "Filter null values and then check if the provided UICC stage equals the computed UICC stage.",
     "Dataelement": [
       {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
@@ -330,7 +330,7 @@
   },
   {
     "Number": 27,
-    "Name": "Suspicious TNM value combination for given UICC version (e.g., N2a for UICC version 6) or uncomputable UICC stage",
+    "Name": "Warning: Suspicious TNM value combination for given UICC version (e.g., N2a for UICC version 6) or uncomputable UICC stage",
     "Description": "Check if the UICC stage is computable.",
     "Dataelement": [
       {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
@@ -344,7 +344,7 @@
   },
   {
     "Number": 28,
-    "Name": "pNX provided in TNM values, while UICC stage is determined (how?)",
+    "Name": "Warning: pNX provided in TNM values, while UICC stage is determined (how?)",
     "Description": "Filter null values and then check if 'Primary Tumor' = NX while 'Stage' is not null or 'IV', 'IVA', 'IVB'.",
     "Dataelement": [
       {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
@@ -354,6 +354,253 @@
     ],
     "FHIR": "Missing",
     "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "1",
+    "Name": "Report: createPlotWithSampleYears",
+    "Description": "Filter patients with sample year value.",
+    "Dataelement": [
+      {"name": "Year of sample collection", "dataelement_id": "Dataelement_89_3"}
+    ],
+    "FHIR": "Partial. Implemented in missing_collection_collectedDateTime.",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partial. Implemented in missing_specimen_date."
+  },
+  {
+    "Number": "2",
+    "Name": "Report: createPlotWithoutSampleYears",
+    "Description": "Filter patients without sample year value.",
+    "Dataelement": [
+      {"name": "Year of sample collection", "dataelement_id": "Dataelement_89_3"}
+    ],
+    "FHIR": "Equivalent. Implemented in missing_collection_collectedDateTime.",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent. Implemented in missing_specimen_date."
+  },
+  {
+    "Number": "3",
+    "Name": "Report: createPlotWithoutSampleID",
+    "Description": "Filter patients without sample ID value.",
+    "Dataelement": [
+      {"name": "Sample ID", "dataelement_id": "Dataelement_56_2"}
+    ],
+    "FHIR": "Equivalent. Implemented in patients_without_specimen_type_text.",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent. Implemented in patients_without_specimen_source_id."
+  },
+  {
+    "Number": "4",
+    "Name": "Report: createPlotWithoutPreservationMode",
+    "Description": "Filter patients without Preservation Mode value.",
+    "Dataelement": [
+      {"name": "Preservation mode", "dataelement_id": "Dataelement_55_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent. Implemented in create_plot_without_preservation_mode, with report # 14.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "5",
+    "Name": "Report: createPlotWithoutMaterialType",
+    "Description": "Filter patients without Material Type value.",
+    "Dataelement": [
+      {"name": "Material type", "dataelement_id": "Dataelement_54_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent. Implemented in patients_without_specimen_source_value_concept_id."
+  },
+  {
+    "Number": "6",
+    "Name": "Report: createPlotsWithoutHistoValues",
+    "Description": "Create plots with missing Histopathology values.",
+    "Dataelement": [
+      {"name": "Localization of metastasis", "dataelement_id": "Dataelement_68_2"},
+      {"name": "Localization of primary tumor", "dataelement_id": "Dataelement_92_1"},
+      {"name": "Morphology", "dataelement_id": "Dataelement_91_1"},
+      {"name": "Grade", "dataelement_id": "Dataelement_83_1"},
+      {"name": "Regional lymph nodes", "dataelement_id": "Dataelement_77_1"},
+      {"name": "Primary Tumor", "dataelement_id": "Dataelement_71_1"},
+      {"name": "Distant metastasis", "dataelement_id": "Dataelement_75_1"},
+      {"name": "UICC version", "dataelement_id": "Dataelement_73_3"},
+      {"name": "Stage", "dataelement_id": "Dataelement_70_2"}
+    ],
+    "FHIR": "Partially. Implemented in patients_without_condition_values, only for Dataelement_92_1.",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. Implemented in patients_without_condition_values, only for Dataelement_92_1 and Dataelement_51_3 (name Date of diagnosis)."
+  },
+  {
+    "Number": "7",
+    "Name": "Report: createPlotsWithoutSurgeryValues",
+    "Description": "Create plots with missing Surgery values.",
+    "Dataelement": [
+      {"name": "Time difference between initial diagnosis and surgery", "dataelement_id": "Dataelement_8_3"},
+      {"name": "Surgery radicality", "dataelement_id": "Dataelement_9_2"},
+      {"name": "Location of the tumor", "dataelement_id": "Dataelement_93_1"},
+      {"name": "Surgery type", "dataelement_id": "Dataelement_49_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. Implemented in patients_without_surgery_values, only for Dataelement_8_3, Dataelement_49_1."
+  },
+  {
+    "Number": "8",
+    "Name": "Report: createPlotsWithoutPatientValues",
+    "Description": "Create plots with missing Patient values.",
+    "Dataelement": [
+      {"name": "Age at diagnosis (rounded to years)", "dataelement_id": "Dataelement_3_1"},
+      {"name": "Biological sex", "dataelement_id": "Dataelement_85_1"},
+      {"name": "Vital status", "dataelement_id": "Dataelement_5_2"},
+      {"name": "Overall survival status", "dataelement_id": "Dataelement_7_2"},
+      {"name": "Colonoscopy", "dataelement_id": "Dataelement_88_1"},
+      {"name": "CT", "dataelement_id": "Dataelement_31_3"},
+      {"name": "Liver imaging", "dataelement_id": "Dataelement_61_5"},
+      {"name": "Lung imaging", "dataelement_id": "Dataelement_63_4"},
+      {"name": "MRI", "dataelement_id": "Dataelement_30_3"},
+      {"name": "Mismatch repair gene expression", "dataelement_id": "Dataelement_15_2"},
+      {"name": "Microsatellite instability", "dataelement_id": "Dataelement_14_3"},
+      {"name": "KRAS exon 2 (codons 12 or 13)", "dataelement_id": "Dataelement_20_3"},
+      {"name": "KRAS exon 3 (codons 59 or 61)", "dataelement_id": "Dataelement_21_5"},
+      {"name": "NRAS exon 4 (codons 117 or 146)", "dataelement_id": "Dataelement_25_3"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. Implemented in createPlotsWithoutPatientValues, only for Dataelement_3_1, Dataelement_85_1, Dataelement_88_1, Dataelement_31_3, Dataelement_61_5, Dataelement_63_4, Dataelement_30_3."
+  },
+  {
+    "Number": "9",
+    "Name": "Report: createPlotsWithoutTargetedTherapy",
+    "Description": "Create plots with missing Targeted therapy values.",
+    "Dataelement": [
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. Implemented in createPlotsWithoutTargetedTherapy, only for Dataelement_35_3."
+  },
+  {
+    "Number": "10",
+    "Name": "Report: createPlotsWithoutPharmacotherapy",
+    "Description": "Create plots with missing Pharmacotherapy values.",
+    "Dataelement": [
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Scheme of pharmacotherapy", "dataelement_id": "Dataelement_59_5"}
+    ],
+    "FHIR": "Missing.",
+    "extra_FHIR": "Missing.",
+    "OMOP": "Equivalent."
+  },
+  {
+    "Number": "11",
+    "Name": "Report: createPlotsWithoutRadiationTherapy",
+    "Description": "Create plots with missing Radiation Therapy values.",
+    "Dataelement": [
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. Implemented in createPlotsWithoutRadiationTherapy, only for Dataelement_12_4."
+  },
+  {
+    "Number": "12",
+    "Name": "Report: createPlotsWithoutResponseToTherapy",
+    "Description": "Create plots with missing Response to therapy values.",
+    "Dataelement": [
+      {"name": "Specific response", "dataelement_id": "Dataelement_33_1"},
+      {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent. Implemented in create_plots_without_response_to_therapy.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "13",
+    "Name": "Report: createPlotForAllMissedValues",
+    "Description": "Create plot for all missing values.",
+    "Dataelement": [],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent. Implemented in completeness for all values."
+  },
+  {
+    "Number": "14",
+    "Name": "Report: getMissingSampleWithoutPreserverationMode",
+    "Description": "Filter patients without Preservation Mode value.",
+    "Dataelement": [
+      {"name": "Preservation mode", "dataelement_id": "Dataelement_55_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "15-22",
+    "Name": "Report: getMissing___RecordSet",
+    "Description": "Create tibble with missing values in form (Sample, Histopathology, Surgery, Patient, Targeted therapy, Pharmacotherapy, Radiation therapy, Response to therapy)",
+    "Dataelement": [],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent. Implemented in completeness."
+  },
+  {
+    "Number": "23-34",
+    "Name": "Report: getAll___RecordSet",
+    "Description": "Helper functions. Not implemented. Create tibble with values in form (Sample, Histopathology, Surgery, Patient, Targeted therapy, Pharmacotherapy, Radiation therapy, Response to therapy, Samples with FFPE, Patients with locations, Pateints with TNM, All therapy and responses together)",
+    "Dataelement": [],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "35-39",
+    "Name": "Report: getListsoFDataFramesWithCountsOfAll___Values, getCountFormsWith___PerBiobank",
+    "Description": "Helper functions. Create list with tibbles from getAll___RecordSet",
+    "Dataelement": [],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Partially. 35 implemented as counts_of_records, the rest is in the completeness."
+  },
+  {
+    "Number": "40",
+    "Name": "Report: getPatientsWithPreservationModeBUTWithoutFFPE",
+    "Description": "Filter patients with other Preservation Mode then FFPE.",
+    "Dataelement": [
+      {"name": "Preservation mode", "dataelement_id": "Dataelement_55_2"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Equivalent. Implemented in get_patients_with_preservation_mode_but_without_ffpe.",
+    "OMOP": "Missing"
+  },
+  {
+    "Number": "41",
+    "Name": "Report: getPatientsWithoutSurgery",
+    "Description": "Filter patients without Surgery form.",
+    "Dataelement": [],
+    "FHIR": "Missing",
+    "extra_FHIR": "Missing",
+    "OMOP": "Equivalent"
+  },
+  {
+    "Number": "42",
+    "Name": "Report: getPatientsWhereNewTreatmentAfterCompleteResponseButNoProgressiveDiseaseOrTimeofRecurrenceAfterIt",
+    "Description": "Patient with new treatment after CompleteResponse, but no ProgressiveDisease or TimeofRecurrence after it - Note could include false-positive cases",
+    "Dataelement": [
+      {"name": "Time of recurrence (metastasis diagnosis)", "dataelement_id": "Dataelement_4_3"},
+      {"name": "Date of start of radiation therapy", "dataelement_id": "Dataelement_12_4"},
+      {"name": "Date of end of radiation therapy", "dataelement_id": "Dataelement_13_2"},
+      {"name": "Date of start of targeted therapy", "dataelement_id": "Dataelement_35_3"},
+      {"name": "Date of end of targeted therapy", "dataelement_id": "Dataelement_36_1"},
+      {"name": "Date of start of pharmacotherapy", "dataelement_id": "Dataelement_10_2"},
+      {"name": "Date of end of pharmacotherapy", "dataelement_id": "Dataelement_11_2"},
+      {"name": "Specific response", "dataelement_id": "Dataelement_33_1"},
+      {"name": "Date response was obtained in weeks since initial diagnosis", "dataelement_id": "Dataelement_34_1"}
+    ],
+    "FHIR": "Missing",
+    "extra_FHIR": "Partially. Implemented in treatment_after_complete_response_without_recurrence_diagnosis. Works only with responses data frame, because all treatment are not mapped.",
     "OMOP": "Missing"
   }
 ]

@@ -11,7 +11,7 @@ from fhirclient.models.specimen import SpecimenCollection
 from fhirclient.models.identifier import Identifier
 from datetime import datetime
 from fhir_classes import Specimen, Patient, Condition
-
+from quality_checks_fhir import *
 
 def provide_server_connection(url):
     """
@@ -349,3 +349,66 @@ def create_files(data, smart_client):
     file_conditions_ids.close()
     file_specimens_ids.close()
     return None
+
+
+def create_graphs(file_name, client):
+    """
+    Store data from file_name in provided server, then create
+    pandas dataframes and run all quality checks from quality_checks_fhir.py
+
+    Args:
+        file_name: Name of input file with data.
+        client: FHIR client.
+
+    Returns:
+        List of figures from data quality checks.
+
+    """
+    read_xml_and_create_resources(file_name, client)
+
+    pdf = create_patient_data_frame(client.server)
+    sdf = create_specimen_data_frame(client.server)
+    cdf = create_condition_data_frame(client.server)
+
+    graphs = []
+    p_completeness = completeness(pdf).to_json()
+    graphs.append(p_completeness)
+    s_completeness = completeness(sdf).to_json()
+    graphs.append(s_completeness)
+    c_completeness = completeness(cdf).to_json()
+    graphs.append(c_completeness)
+
+    p_uniqueness = uniqueness(pdf, "patient").to_json()
+    graphs.append(p_uniqueness)
+    s_uniqueness = uniqueness(pdf, "specimen").to_json()
+    graphs.append(s_uniqueness)
+    c_uniqueness = uniqueness(pdf, "condition").to_json()
+    graphs.append(c_uniqueness)
+
+    p_conformance = conformance_patient(pdf).to_json()
+    graphs.append(p_conformance)
+    c_conformance = conformance_condition(cdf).to_json()
+    graphs.append(c_conformance)
+    s_conformance = conformance_specimen(sdf).to_json()
+    graphs.append(s_conformance)
+
+    s_conformance_r = conformance_relational(sdf, client.server).to_json()
+    graphs.append(s_conformance_r)
+    c_conformance_r = conformance_relational(cdf, client.server).to_json()
+    graphs.append(c_conformance_r)
+    conformance_c = conformance_computational(pdf, sdf, cdf).to_json()
+    graphs.append(conformance_c)
+
+    age = age_at_primary_diagnosis(pdf, cdf).to_json()
+    graphs.append(age)
+    diagnosis = diagnosis_in_future(cdf).to_json()
+    graphs.append(diagnosis)
+    missing = missing_collection_collectedDateTime(pdf, sdf).to_json()
+    graphs.append(missing)
+    patients_without_specimen = patients_without_specimen_type_text(pdf, sdf).to_json()
+    graphs.append(patients_without_specimen)
+
+    patients = patients_without_condition_values(pdf, cdf).to_json()
+    graphs.append(patients)
+
+    return graphs

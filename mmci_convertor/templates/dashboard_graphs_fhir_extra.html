@@ -9,7 +9,7 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
-<body onload="checkStandard({{ standard }}, {{ extra }})">
+<body>
     <div class="container">
         <div class="sidebar">
                 <h2>FHIR extra dashboard</h2>
@@ -39,8 +39,8 @@
                             <button type="submit" name="action" class="view">View FHIR dashboard</button>
                         </form>
                     </li>
-                    <li id="view_dashboard" style="border-bottom: 4px solid white; padding-bottom: 16px;">
-                        <form action="/view_dashboard" method="POST">
+                    <li id="view_dashboard_omop" style="border-bottom: 4px solid white; padding-bottom: 16px;">
+                        <form action="/go_to_dashboard_omop" method="POST">
                             <button type="submit" name="action" class="view">View OMOP dashboard</button>
                         </form>
                     </li>

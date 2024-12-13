@@ -1,14 +1,14 @@
-function downloadGraphsFhirExtraZIP() {
+function downloadGraphsFhirZIP() {
     window.location.href = '/download_graphs_fhir_zip_extra';
 }
 
-function downloadFailuresFhirExtraZIP() {
+function downloadFailuresFhirZIP() {
     window.location.href = '/download_failures_fhir_zip_extra';
 }
 
 function pollSessionValue() {
-    const intervalId = setInterval(() => {
-        fetch('/check_graphs_done_fhir_extra')
+    const intervalId = setInterval( () => {
+        fetch('/check_failures_done_fhir_extra')
             .then(response => {
                 if (!response.ok) {
                     throw new Error('Network response was not ok');
@@ -17,13 +17,13 @@ function pollSessionValue() {
             })
             .then(data => {
                 const done = data["response"];
-                const graphs = data["graphs"];
+                const tables = data["tables"];
 
-                const count = graphs.length;
-                addProgressBar(count);
+                const count = tables.length;
+                console.log(count);
 
                 if (done == true) {
-                    addNewDiv(graphs);
+                    addNewDiv(tables);
                     clearInterval(intervalId);
                 }
                 console.log(done);
@@ -32,27 +32,23 @@ function pollSessionValue() {
     }, 1000);
 }
 
-function addProgressBar(count) {
-    const progressBar = document.getElementById("progress-bar");
-    progressBar.textContent = count.toString().concat(" out of 47 graphs finished. Please wait.")
-}
-
-function addNewDiv(graphs) {
+function addNewDiv(tables) {
     const container = document.getElementById("main-content");
     const progressBar = document.getElementById("progress-bar");
-    progressBar.style.cssText = "display: none;";
-    for (let i = 0; i < graphs.length; i++) {
+    if (progressBar != null) {
+        progressBar.style.cssText = "display: none;";
+        }
+    for (let i = 0; i < tables.length; i++) {
         const newDiv = document.createElement('div');
-        newDiv.id = "graph".concat("-", i.toString());
-        newDiv.className = "graph-container";
+        const newDivId = "table".concat("-", i.toString());
+        newDiv.id = newDivId;
+        newDiv.className = "table-container";
         newDiv.style.cssText = "height: 400px;";
         container.appendChild(newDiv);
 
-        const graphJson = graphs.at(i);
-        const graph = JSON.parse(graphJson);
-        const plotData = graph.data;
-        const plotLayout = graph.layout;
-        Plotly.newPlot('graph'.concat("-", i.toString()), plotData, plotLayout);
+        const tableHTML = tables.at(i);
+        document.getElementById(newDivId).innerHTML = tableHTML;
+
     }
 }
 window.onload = function() {

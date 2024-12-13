@@ -71,14 +71,15 @@ button {
 }
 
 .grid-container-element {
-    text-align-last: center;
+    display: flex;
     /* display: grid;
     grid-template-columns: 1fr 1fr; */
 }
 
 .grid-child-element {
     margin: 10px;
-    text-align: end;
+    text-align: start;
+    width: 50%;
 }
 
 .db-title {
@@ -150,4 +151,18 @@ https://www.w3schools.com/howto/howto_css_download_button.asp
 .qc {
     width: 90vw;
     height: 90 vh;
+}
+
+/*Styles for OMOP database connection */
+.form-group {
+    display: flex;
+    justify-content: space-between; /* Push items to opposite ends */
+    align-items: center; /* Align items vertically */
+    margin-bottom: 10px; /* Add spacing between rows */
+}
+label {
+    margin-right: 10px; /* Add spacing between label and input */
+}
+input {
+    flex-shrink: 0; /* Prevent input from shrinking */
 }

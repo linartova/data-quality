@@ -42,10 +42,11 @@
         </div>
         <div class="bruh">
             <div>
-                <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}">
-                    <button class="btn corner"><i class="fa fa-download"></i> Download documentation</button>
-                </a>
-                <form action="/FROM_qc_documentation_TO_choose_your_path" method="POST">
+                <button class="btn corner">
+                    <a href="{{ url_for('download_file', filename='Documentation_for_MMCI_convector.pdf') }}"></a>
+                    Download documentation
+                </button>
+                <form style="padding : 0px; margin : 0px;" action="/FROM_qc_documentation_TO_choose_your_path" method="POST">
                     <button type="submit" class="dark corner">Next</button>
                 </form>
             </div>

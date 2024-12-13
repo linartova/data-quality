@@ -33,7 +33,7 @@ function pollSessionValue() {
 
 function addProgressBar(count) {
     const progressBar = document.getElementById("progress-bar");
-    progressBar.textContent = count.toString().concat(" out of 16 graphs finished. Please wait.")
+    progressBar.textContent = count.toString().concat(" out of 39 graphs finished. Please wait.")
 }
 
 function addNewDiv(graphs) {

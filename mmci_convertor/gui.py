@@ -2,11 +2,9 @@ import json
 import psycopg2
 from flask import Flask, redirect, url_for,  render_template, request, session, send_file, send_from_directory
 import os
-from load_data_fhir import provide_server_connection, read_xml_and_create_resources
-from load_data_fhir_extra import create_graphs
-from load_data_ohdsi import load_data
-import quality_checks_fhir
-import quality_checks_ohdsi as qc_o
+from load_data_fhir import provide_server_connection, read_xml_and_create_resources, create_graphs
+from load_data_fhir_extra import create_graphs_extra
+from load_data_ohdsi import create_graphs_omop
 import atexit
 import pandas as pd
 from fhirclient import client
@@ -677,56 +675,11 @@ def fire(url, file_name, fhir_extra):
     # store resources
     read_xml_and_create_resources(file_name, smart_client)
 
-    # create graphs
-    pdf = quality_checks_fhir.create_patient_data_frame(smart_client.server)
-    sdf = quality_checks_fhir.create_specimen_data_frame(smart_client.server)
-    cdf = quality_checks_fhir.create_condition_data_frame(smart_client.server)
-
-    graphs = []
-
-    p_completeness = quality_checks_fhir.completeness(pdf).to_json()
-    graphs.append(p_completeness)
-    s_completeness = quality_checks_fhir.completeness(sdf).to_json()
-    graphs.append(s_completeness)
-    c_completeness = quality_checks_fhir.completeness(cdf).to_json()
-    graphs.append(c_completeness)
-
-    p_uniqueness = quality_checks_fhir.uniqueness(pdf, "patient").to_json()
-    graphs.append(p_uniqueness)
-    s_uniqueness = quality_checks_fhir.uniqueness(pdf, "specimen").to_json()
-    graphs.append(s_uniqueness)
-    c_uniqueness = quality_checks_fhir.uniqueness(pdf, "condition").to_json()
-    graphs.append(c_uniqueness)
-
-    p_conformance = quality_checks_fhir.conformance_patient(pdf).to_json()
-    graphs.append(p_conformance)
-    c_conformance = quality_checks_fhir.conformance_condition(cdf).to_json()
-    graphs.append(c_conformance)
-    s_conformance = quality_checks_fhir.conformance_specimen(sdf).to_json()
-    graphs.append(s_conformance)
-
-    s_conformance_r = quality_checks_fhir.conformance_relational(sdf, smart_client.server).to_json()
-    graphs.append(s_conformance_r)
-    c_conformance_r = quality_checks_fhir.conformance_relational(cdf, smart_client.server).to_json()
-    graphs.append(c_conformance_r)
-    conformance_c = quality_checks_fhir.conformance_computational(pdf, sdf, cdf).to_json()
-    graphs.append(conformance_c)
-
-    age_at_primary_diagnosis = quality_checks_fhir.age_at_primary_diagnosis(pdf, cdf).to_json()
-    graphs.append(age_at_primary_diagnosis)
-    diagnosis_in_future = quality_checks_fhir.diagnosis_in_future(cdf).to_json()
-    graphs.append(diagnosis_in_future)
-    missing_collection_collectedDateTime = quality_checks_fhir.missing_collection_collectedDateTime(pdf, sdf).to_json()
-    graphs.append(missing_collection_collectedDateTime)
-    # TODO problem here
-    # patients_without_specimen_type_text = quality_checks_fhir.patients_without_specimen_type_text(pdf, cdf).to_json()
-    # graphs.append(patients_without_specimen_type_text)
-    patients_without_condition_values = quality_checks_fhir.patients_without_condition_values(pdf, cdf).to_json()
-    graphs.append(patients_without_condition_values)
+    graphs = create_graphs(file_name, smart_client)
 
     if fhir_extra:
         os.makedirs('graphs/fhir/extra', exist_ok=True)
-        other_graphs = create_graphs(file_name, smart_client)
+        other_graphs = create_graphs_extra(file_name, smart_client)
         for i, graph_json in enumerate(other_graphs):
             with open(f'graphs/fhir/extra/graph_{i}.json', 'w') as f:
                 json.dump(graph_json, f)
@@ -756,63 +709,7 @@ def omop_workflow(ohdsi, input_file):
     Returns:
         List of generated graphs in json format.
     """
-    schema = ohdsi.pop("schema")
-    load_data(ohdsi, input_file, schema)
-
-    # dashboard viz
-    con = psycopg2.connect(**ohdsi)
-    graphs = []
-
-    pdf = qc_o.create_df_omop(con, "person", schema)
-    odf = qc_o.create_df_omop(con, "observation_period", schema)
-    cdf = qc_o.create_df_omop(con, "condition_occurrence", schema)
-    sdf = qc_o.create_df_omop(con, "specimen", schema)
-    ddf = qc_o.create_df_omop(con, "drug_exposure", schema)
-    prdf = qc_o.create_df_omop(con, "procedure_occurrence", schema)
-
-    graphs.append(qc_o.completeness(pdf).to_json())
-    graphs.append(qc_o.completeness(odf).to_json())
-    graphs.append(qc_o.completeness(cdf).to_json())
-    graphs.append(qc_o.completeness(sdf).to_json())
-    graphs.append(qc_o.completeness(ddf).to_json())
-    graphs.append(qc_o.completeness(prdf).to_json())
-
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-    graphs.append(qc_o.uniqueness(pdf).to_json())
-
-    # warnings
-    graphs.append(qc_o.observation_end_precedes_condition_start(cdf, odf).to_json())
-    graphs.append(qc_o.observation_end_equals_condition_start(cdf, odf).to_json())
-    graphs.append(qc_o.too_young_person(pdf,cdf).to_json())
-    graphs.append(qc_o.observation_end_in_the_future(odf).to_json())
-    graphs.append(qc_o.condition_start_in_the_future(cdf).to_json())
-    graphs.append(qc_o.missing_drug_exposure_info(ddf).to_json())
-    graphs.append(qc_o.sus_pharma(ddf).to_json())
-    graphs.append(qc_o.sus_pharma_other(ddf).to_json())
-    graphs.append(qc_o.drug_end_before_start(ddf).to_json())
-    # TODO solve problem, function returns tuple
-    # graphs.append(qc_o.therapy_start_before_diagnosis(cdf, ddf, prdf).to_json())
-    # graphs.append(qc_o.treatment_start_in_the_future(ddf, prdf).to_json())
-    graphs.append(qc_o.drug_exposure_end_in_the_future(ddf).to_json())
-    graphs.append(qc_o.sus_early_pharma(cdf, ddf).to_json())
-    graphs.append(qc_o.sus_short_pharma(cdf, ddf).to_json())
-
-    # reports
-    graphs.append(qc_o.missing_specimen_date(pdf, sdf).to_json())
-    graphs.append(qc_o.patients_without_specimen_source_id(pdf, sdf).to_json())
-    graphs.append(qc_o.patients_without_specimen_source_value_concept_id(pdf, sdf).to_json())
-    graphs.append(qc_o.patients_without_condition_values(pdf, cdf).to_json())
-    graphs.append(qc_o.patients_without_surgery_values(pdf, prdf).to_json())
-    graphs.append(qc_o.missing_patient_and_diagnostic_values(pdf, prdf).to_json())
-    graphs.append(qc_o.missing_targeted_therapy_values(pdf, prdf).to_json())
-    graphs.append(qc_o.missing_pharmacotherapy_value(pdf, ddf).to_json())
-    graphs.append(qc_o.missing_radiation_therapy_values(pdf, prdf).to_json())
-    graphs.append(qc_o.counts_of_records(pdf, odf, cdf, sdf, ddf, prdf).to_json())
-    graphs.append(qc_o.get_patients_without_surgery(pdf, prdf).to_json())
+    graphs = create_graphs_omop(ohdsi, input_file)
 
     # TODO chatGPT
     # Directory to store the JSON files
@@ -872,6 +769,7 @@ def teardown():
     delete_files_except_one("uploads")
     try:
         os.remove("patients_ids.txt")
+        os.remove("recurrence_ids.txt")
         os.remove("conditions_ids.txt")
         os.remove("specimens_ids.txt")
         os.remove("radiation_ids.txt")
@@ -971,7 +869,7 @@ def download_graphs_fhir_zip():
     """
     files_path = os.path.join(os.getcwd(), "graphs/fhir")
     # Generate the ZIP file containing existing files
-    zip_buffer = create_zip_graphs(files_path, 16)
+    zip_buffer = create_zip_graphs(files_path, 17)
 
     # Send the ZIP file as a downloadable response
     return send_file(zip_buffer, as_attachment=True, download_name="graphs_fhir.zip", mimetype='application/zip')
@@ -986,7 +884,7 @@ def download_graphs_fhir_zip_extra():
     """
     files_path = os.path.join(os.getcwd(), "graphs/fhir/extra")
     # Generate the ZIP file containing existing files
-    zip_buffer = create_zip_graphs(files_path, 33)
+    zip_buffer = create_zip_graphs(files_path, 47)
 
     # Send the ZIP file as a downloadable response
     return send_file(zip_buffer, as_attachment=True, download_name="graphs_fhir_extra.zip", mimetype='application/zip')
@@ -1000,7 +898,7 @@ def download_graphs_omop_zip():
     """
     files_path = os.path.join(os.getcwd(), "graphs/omop")
     # Generate the ZIP file containing existing files
-    zip_buffer = create_zip_graphs(files_path, 35)
+    zip_buffer = create_zip_graphs(files_path, 39)
 
     # Send the ZIP file as a downloadable response
     return send_file(zip_buffer, as_attachment=True, download_name="graphs_omop.zip", mimetype='application/zip')
@@ -1101,7 +999,7 @@ def check_graphs_done_fhir_extra():
             with open(os.path.join('graphs/fhir/extra', file_name)) as f:
                 graphs.append(json.load(f))
 
-    if len(graphs) != 33:
+    if len(graphs) != 47:
         graphs_done = False
     else:
         graphs_done = True
@@ -1131,7 +1029,7 @@ def check_failures_done_fhir_extra():
         tables.append(table_html)
 
     print(len(tables))
-    if len(tables) != 36:
+    if len(tables) != 28:
         graphs_done = False
     else:
         graphs_done = True
@@ -1159,7 +1057,7 @@ def check_graphs_done_fhir():
             with open(os.path.join('graphs/fhir', file_name)) as f:
                 graphs.append(json.load(f))
 
-    if len(graphs) != 16:
+    if len(graphs) != 17:
         graphs_done = False
     else:
         graphs_done = True
@@ -1190,7 +1088,38 @@ def check_failures_done_fhir():
         tables.append(table_html)
 
     print(len(tables))
-    if len(tables) != 15:
+    if len(tables) != 16:
+        graphs_done = False
+    else:
+        graphs_done = True
+
+    data = {
+        "response" : graphs_done,
+        "tables" : tables
+    }
+    json_data = json.dumps(data)
+    return json_data
+
+
+@app.route('/check_failures_done_omop')
+def check_failures_done_omop():
+    """
+
+    Returns: End point for loading OMOP failures.
+
+    """
+    data_path = './reports/omop'  # Directory containing CSV files
+    csv_files = [f for f in os.listdir(data_path) if f.endswith('.csv')]
+
+    tables = []
+    for file in csv_files:
+        file_path = os.path.join(data_path, file)
+        df = pd.read_csv(file_path)  # Read CSV file
+        table_html = df.to_html(classes='table table-striped', index=False)  # Convert DataFrame to HTML
+        tables.append(table_html)
+
+    print(len(tables))
+    if len(tables) != 39:
         graphs_done = False
     else:
         graphs_done = True
@@ -1218,7 +1147,7 @@ def check_graphs_done_omop():
             with open(os.path.join('graphs/omop', file_name)) as f:
                 graphs.append(json.load(f))
 
-    if len(graphs) != 35:
+    if len(graphs) != 39:
         graphs_done = False
     else:
         graphs_done = True

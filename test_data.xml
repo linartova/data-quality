@@ -32,6 +32,7 @@
                         <Dataelement_25_3 name="NRAS exon 4 (codons 117 or 146)">Not done</Dataelement_25_3>
                         <Dataelement_14_3 name="Microsatellite instability">NOT_DONE</Dataelement_14_3>
                         <Dataelement_15_2 name="Mismatch repair gene expression">NOT_DONE</Dataelement_15_2>
+                        <Dataelement_4_3 name="Time of recurrence (metastasis diagnosis)">20</Dataelement_4_3>
 			            <Dataelement_16_3 name="Risk situation (only HNPCC)">false</Dataelement_16_3>
                     </Form>
                 </BasicData>
@@ -92,6 +93,22 @@
 				                <Dataelement_34_1 name="Date response was obtained in weeks since initial diagnosis">30</Dataelement_34_1>
 			                </Form4>
 			            </LogitudinalData>
+                    </Event>
+                    <Event name="6" eventtype="Targeted Therapy">
+                        <LogitudinalData>
+                            <Form6 name="form_30_ver-3">
+                                <Dataelement_35_3 name="Date of start of targeted therapy">10</Dataelement_35_3>
+                                <Dataelement_36_1 name="Date of end of targeted therapy">20</Dataelement_36_1>
+                            </Form6>
+                        </LogitudinalData>
+                    </Event>
+                    <Event name="7" eventtype="Radiation therapy">
+                        <LogitudinalData>
+                            <Form5 name="form_29_ver-5">
+                                <Dataelement_12_4 name="Date of start of radiation therapy">30</Dataelement_12_4>
+                                <Dataelement_13_2 name="Date of end of radiation therapy">35</Dataelement_13_2>
+                            </Form5>
+                        </LogitudinalData>
                     </Event>
                 </Events>
             </Location>

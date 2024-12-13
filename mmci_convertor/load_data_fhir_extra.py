@@ -82,6 +82,11 @@ def read_xml_and_create_resources(file_name, smart):
                 timestamp = None
             patient = Patient(patient_id, deceased_boolean, timestamp, sex.text, birth_date)
 
+            # recurrence
+            recurrence = form.find(namespace + "Dataelement_4_3")
+            if recurrence is not None:
+                recurrence = recurrence.text
+
             # condition
             date_diagnosis = form.find(namespace + "Dataelement_51_3")
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
@@ -116,7 +121,7 @@ def read_xml_and_create_resources(file_name, smart):
             # specimen
             specimens = find_specimens(namespace, events)
 
-            record = Record(patient, time_observation, responses,
+            record = Record(patient, recurrence, time_observation, responses,
                            surgeries, radiations, targeteds, tnm,
                            Condition(localization, date_diagnosis.text),
                            specimens)
@@ -203,11 +208,11 @@ def map_stage(stage):
              "IIA1","IIA2","IIB","IIC","III","IIIA",
              "IIIA1","IIIA2","IIIB","IIIC","IIIC1",
              "IIIC2","IV","IVA","IVB","IVC"}
+    # probably error in data
+    if stage.find("II A") != -1:
+        return "IIA", "Stage " + "IIA"
     for code in codes:
-        # probably error in data
-        if stage == "II A":
-            return "IIA", "IIA"
-        if stage == code:
+        if stage.find(code) != -1:
             if code == "X":
                 return "okk", "Stage X"
             return code, "Stage " + code
@@ -261,7 +266,7 @@ def map_morphology(morphology):
     Returns: code and display values based on original value
 
     """
-    codes = {"Adenocarcinoma" : ("1187332001", "Adenocarcinoma (morphologic abnormality)|"),
+    codes = {"Adenocarcinoma" : ("1187332001", "Adenocarcinoma (morphologic abnormality)"),
              "Mucinous carcinoma" : ("72495009", "Mucinous adenocarcinoma (morphologic abnormality)"),
              "Signet-ring cell carcinoma" : ("87737001", "Signet ring cell carcinoma (morphologic abnormality)"),
              "Medullary carcinoma" : ("32913002", "Medullary carcinoma (morphologic abnormality)"),
@@ -621,6 +626,9 @@ def create_resources(record, smart_client):
         specimen_urls: The urls of Resources Specimen.
     """
     patient_url = create_patient(record.patient, smart_client)
+    recurrence_url = None
+    if record.recurrence is not None:
+        recurrence_url = create_recurrence_observation(record.recurrence, patient_url, smart_client)
     time_observation_url = create_time_observation(record.time_observation, patient_url, smart_client)
     responses_url = []
     for response in record.responses:
@@ -639,7 +647,7 @@ def create_resources(record, smart_client):
     specimen_urls = []
     for specimen in record.specimens:
         specimen_urls.append(create_specimen(patient_url, specimen, smart_client))
-    return (patient_url, time_observation_url, responses_url, surgeries_url,
+    return (patient_url, recurrence_url, time_observation_url, responses_url, surgeries_url,
             radiations_url, targeteds_url, tnm_url, condition_url, specimen_urls)
 
 
@@ -662,6 +670,53 @@ def create_patient(patient_info, smart_client):
     patient.identifier[0].value = patient_info.identifier
 
     response = store_resources(smart_client, patient, "Patient")
+    resource_on_server = response.content
+    index_id = resource_on_server.rfind(b'"id"') + 6
+    return resource_on_server[index_id:index_id+16].decode("utf-8")
+
+
+def create_recurrence_observation(recurrence_observation, patient_id, smart_client):
+    """
+    Create and store the Resource Observation on FHIR server.
+    The resource should represent recurrence observation.
+
+    Args:
+        recurrence_observation: The recurrence diagnosis time interval.
+        patient_id: The url of patient subject.
+        smart_client: The FHIR client.
+
+    Returns:
+        The url of Resource Observation.
+    """
+    observation = o.Observation()
+
+    # status
+    observation.status = "final"
+
+    # code
+    code = Coding()
+    code.system = "http://loinc.org"
+    code.code = "21983-2"
+    code.display = "Recurrence type first episode Cancer"
+
+    code_wrapper = codeAbleConcept.CodeableConcept()
+    code_wrapper.coding = [code]
+
+    observation.code = code_wrapper
+
+    # subject
+    observation.subject = FHIRReference({'reference': "Patient/" + patient_id})
+
+    # valueQuantity
+    value = Quantity()
+    value.value = float(recurrence_observation)
+    value.unit = "wk"
+    value.system = "http://unitsofmeasure.org"
+    value.code = "wk"
+
+    observation.valueQuantity = value
+
+    response = store_resources(smart_client, observation, "Observation")
     resource_on_server = response.content
     index_id = resource_on_server.rfind(b'"id"') + 6
     return resource_on_server[index_id:index_id+16].decode("utf-8")
@@ -1260,6 +1315,7 @@ def create_files(data, smart_client):
     """
     # resources
     patients = []
+    recurrence = []
     time_observations = []
     surgeries = []
     radiations = []
@@ -1269,10 +1325,12 @@ def create_files(data, smart_client):
     conditions = []
     specimens = []
     for record in data:
-        (patient_url, time_observation_url, responses_url, surgeries_url, radiations_url,
+        (patient_url, recurrence_url, time_observation_url, responses_url, surgeries_url, radiations_url,
          targeteds_url, tnm_url, condition_url, specimen_urls) = create_resources(record, smart_client)
         patients.append(patient_url)
         time_observations.append(time_observation_url)
+        if recurrence_url is not None:
+            recurrence.append(recurrence_url)
         tnms.append(tnm_url)
         surgeries += surgeries_url
         radiations += radiations_url
@@ -1281,6 +1339,7 @@ def create_files(data, smart_client):
         conditions.append(condition_url)
         specimens += specimen_urls
     file_patients_ids = open("patients_ids.txt", "w")
+    file_recurrence_ids = open("recurrence_ids.txt", "w")
     file_time_observation_ids = open("time_observation_ids.txt", "w")
     file_tnm_ids = open("tnm_ids.txt", "w")
     file_surgery_ids = open("surgery_ids.txt", "w")
@@ -1291,6 +1350,8 @@ def create_files(data, smart_client):
     file_specimens_ids = open("specimens_ids.txt", "w")
     for record in patients:
         file_patients_ids.write(record + "\n")
+    for record in recurrence:
+        file_recurrence_ids.write(record + "\n")
     for record in time_observations:
         file_time_observation_ids.write(record + "\n")
     for record in tnms:
@@ -1319,7 +1380,7 @@ def create_files(data, smart_client):
     return None
 
 
-def create_graphs(file_name, client):
+def create_graphs_extra(file_name, client):
     """
     Store data from file_name in provided server, then create
     pandas dataframes and run all quality checks from quality_checks_fhir_extra.py
@@ -1335,6 +1396,7 @@ def create_graphs(file_name, client):
     read_xml_and_create_resources(file_name, client)
 
     patient_df = create_patient_data_frame(client.server)
+    recurrence_df = create_recurrence_df(client.server)
     tnm_df = create_tnm_dataframe(client.server)
     time_df = create_time_observation_df(client.server)
     response_df = create_response_df(client.server)
@@ -1345,6 +1407,19 @@ def create_graphs(file_name, client):
     condition_df = create_condition_data_frame(client.server)
 
     graphs = [
+    # completeness
+    completeness(patient_df),
+    completeness(recurrence_df),
+    completeness(tnm_df),
+    completeness(time_df),
+    completeness(response_df),
+    completeness(radiation_df),
+    completeness(targeted_df),
+    completeness(surgery_df),
+    completeness(specimen_df),
+    completeness(condition_df),
+
+    # warnings:
     last_update_before_initial_diagnosis(condition_df, time_df),
     vital_check_date_is_equal_to_initial_diagnosis_date(condition_df, time_df),
     suspicious_survival_information(condition_df, time_df),
@@ -1383,7 +1458,14 @@ def create_graphs(file_name, client):
 
     mismatch_between_provided_and_computed_stage_value(tnm_df),
     sus_tnm_combo_for_uicc_version_or_uncomputable_stage(tnm_df),
-    pnx_and_missing_uicc_stage(tnm_df)]
+    pnx_and_missing_uicc_stage(tnm_df),
+
+    # reports:
+    create_plot_without_preservation_mode(patient_df, specimen_df),
+    create_plots_without_response_to_therapy(patient_df, response_df),
+    get_patients_with_preservation_mode_but_without_ffpe(patient_df, specimen_df),
+    treatment_after_complete_response_without_recurrence_diagnosis(patient_df, response_df, condition_df, recurrence_df)
+    ]
 
     for i in range(len(graphs)):
         graphs[i] = graphs[i].to_json()

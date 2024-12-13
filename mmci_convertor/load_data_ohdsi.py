@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ElementTree
 from collections import deque
 from datetime import datetime, timedelta
 from ohdsi_classes import *
+from quality_checks_ohdsi import  *
 
 
 def read_xml_and_parse(file_name):
@@ -650,3 +651,80 @@ def load_data(params, input_file, schema):
         conn.close()
     except Exception as e:
         print(f"Error: {e}")
+
+def create_graphs_omop(ohdsi, input_file):
+    """
+    Run OMOP loading data and quality checks.
+
+    Args:
+        ohdsi: Connection information for OMOP database.
+        input_file: Name of file with input data.
+
+    Returns:
+        List of generated graphs in json format.
+    """
+    schema = ohdsi.pop("schema")
+    load_data(ohdsi, input_file, schema)
+
+    # dashboard viz
+    con = psycopg2.connect(**ohdsi)
+    graphs = []
+
+    pdf = create_df_omop(con, "person", schema)
+    odf = create_df_omop(con, "observation_period", schema)
+    cdf = create_df_omop(con, "condition_occurrence", schema)
+    sdf = create_df_omop(con, "specimen", schema)
+    ddf = create_df_omop(con, "drug_exposure", schema)
+    prdf = create_df_omop(con, "procedure_occurrence", schema)
+
+    graphs.append(completeness(pdf).to_json())
+    graphs.append(completeness(odf).to_json())
+    graphs.append(completeness(cdf).to_json())
+    graphs.append(completeness(sdf).to_json())
+    graphs.append(completeness(ddf).to_json())
+    graphs.append(completeness(prdf).to_json())
+
+    graphs.append(uniqueness(pdf).to_json())
+    graphs.append(uniqueness(pdf).to_json())
+    graphs.append(uniqueness(pdf).to_json())
+    graphs.append(uniqueness(pdf).to_json())
+    graphs.append(uniqueness(pdf).to_json())
+    graphs.append(uniqueness(pdf).to_json())
+
+    # warnings
+    graphs.append(observation_end_precedes_condition_start(cdf, odf).to_json())
+    graphs.append(observation_end_equals_condition_start(cdf, odf).to_json())
+    graphs.append(too_young_person(pdf, cdf).to_json())
+    graphs.append(observation_end_in_the_future(odf).to_json())
+    graphs.append(condition_start_in_the_future(cdf).to_json())
+    graphs.append(missing_drug_exposure_info(ddf).to_json())
+    graphs.append(sus_pharma(ddf).to_json())
+    graphs.append(sus_pharma_other(ddf).to_json())
+    graphs.append(drug_end_before_start(ddf).to_json())
+
+    fig_1, fig_2 = therapy_start_before_diagnosis(cdf, ddf, prdf)
+    fig_3, fig_4 = treatment_start_in_the_future(ddf, prdf)
+
+    graphs.append(fig_1.to_json())
+    graphs.append(fig_2.to_json())
+    graphs.append(fig_3.to_json())
+    graphs.append(fig_4.to_json())
+
+    graphs.append(drug_exposure_end_in_the_future(ddf).to_json())
+    graphs.append(sus_early_pharma(cdf, ddf).to_json())
+    graphs.append(sus_short_pharma(cdf, ddf).to_json())
+
+    # reports
+    graphs.append(missing_specimen_date(pdf, sdf).to_json())
+    graphs.append(patients_without_specimen_source_id(pdf, sdf).to_json())
+    graphs.append(patients_without_specimen_source_value_concept_id(pdf, sdf).to_json())
+    graphs.append(patients_without_condition_values(pdf, cdf).to_json())
+    graphs.append(patients_without_surgery_values(pdf, prdf).to_json())
+    graphs.append(missing_patient_and_diagnostic_values(pdf, prdf).to_json())
+    graphs.append(missing_targeted_therapy_values(pdf, prdf).to_json())
+    graphs.append(missing_pharmacotherapy_value(pdf, ddf).to_json())
+    graphs.append(missing_radiation_therapy_values(pdf, prdf).to_json())
+    graphs.append(counts_of_records(pdf, odf, cdf, sdf, ddf, prdf).to_json())
+    graphs.append(get_patients_without_surgery(pdf, prdf).to_json())
+
+    return graphs

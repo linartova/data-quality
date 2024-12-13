@@ -1,7 +1,7 @@
 import pandas as pd
 import plotly.express as px
 from _datetime import datetime
-from load_data_fhir_extra import provide_server_connection, read_xml_and_create_resources
+# from load_data_fhir_extra import provide_server_connection, read_xml_and_create_resources
 
 
 def create_patient_data_frame(server):
@@ -170,6 +170,42 @@ def create_tnm_dataframe(server):
             next_df = pd.DataFrame([result])
             all_tnm = pd.concat([all_tnm, next_df])
     return all_tnm
+
+def create_recurrence_df(server):
+    """
+    Convert FHIR resources Observation representing
+     recurrence of metastasis into pandas dataframe.
+
+    Args:
+        server: FHIR server.
+
+    Returns:
+        Dataframe.
+
+    """
+    all_dict = {"subject" : [],
+                "recurrence" : []
+                }
+    all_times = pd.DataFrame(all_dict)
+    with open('recurrence_ids.txt', 'r') as ids:
+        for id in ids:
+            result = {}
+            id = id[:-1]
+            data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
+
+            # subject
+            subject = data.pop("subject")
+            reference = subject.pop("reference")
+            result["subject"] = reference
+
+            # recurrence
+            value_quantity = data.pop("valueQuantity")
+            value = value_quantity.pop("value")
+            result["recurrence"] = value
+
+            next_df = pd.DataFrame([result])
+            all_times = pd.concat([all_times, next_df])
+    return all_times
 
 
 def create_time_observation_df(server):
@@ -550,266 +586,6 @@ def completeness(df):
     fig = px.scatter(missing_values)
     fig.update_layout(xaxis_title='count of missing values', yaxis_title='attribute', title="Missing values",
                       showlegend=False)
-    return fig
-
-
-def uniqueness(df, name):
-    """
-    Data quality check for uniqueness.
-
-    :param df: Input data frame
-    :param name: Name of processed data frame.
-    :return:
-        Graph of uniqueness.
-    """
-    df = df.copy()
-    count_of_rows = df.shape[0]
-    df.drop(columns="meta_versionId", inplace=True)
-    df.drop(columns="meta_lastUpdated", inplace=True)
-    df.drop(columns="id", inplace=True)
-
-    count_of_duplicates = df.duplicated().sum()
-    result = {
-        "Duplicates": ["Unique rows", "Duplicated"],
-        "Count": [count_of_rows - count_of_duplicates, count_of_duplicates]
-    }
-    dff = pd.DataFrame(result)
-    fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values')
-
-    df.to_csv("reports/fhir/extra/uniqueness" + name + ".csv", index=False)
-    return fig
-
-def conformance_patient(df):
-    """
-    Data quality check for conformance of Resource Patient.
-
-    :param df: Patient data frame.
-    :return:
-        Graph of conformance.
-    """
-    # gender
-    count_of_rows = df.shape[0]
-    gender_check_count = df["gender"].isin(["male", "female", "other", "unknown"]).sum()
-
-    # birthDate
-    df["birthDate"] = pd.to_datetime(df["birthDate"], errors="coerce")
-    birth_date_check = df.isnull()["birthDate"].sum()
-
-    result = {
-        "Records": ["Number of records", "Invalid gender", "Invalid birth date"],
-        "Count": [count_of_rows, count_of_rows - gender_check_count, birth_date_check]
-    }
-
-    dff = pd.DataFrame(result)
-    fig = px.bar(dff, x='Records', y='Count')
-    return fig
-
-
-
-def conformance_condition(df):
-    """
-    Data quality check for conformance of Resource Conformance.
-
-    :param df: Conformance data frame.
-    :return:
-        Graph of conformance.
-    """
-    count_of_rows = df.shape[0]
-
-    # recordedDate
-    df["recordedDate"] = pd.to_datetime(df["recordedDate"],
-                                        errors="coerce")
-    recorded_date_check = df.isnull()["recordedDate"].sum()
-
-    # onsetDateTime
-    df["onsetDateTime"] = pd.to_datetime(df["onsetDateTime"],
-                                         errors="coerce")
-    onset_date_time_check = df.isnull()["onsetDateTime"].sum()
-
-    # clinical Status
-    clinical_status_coding_code_check = df[
-        "clinicalStatus_coding_code"].isin(
-        ["active", "recurrence", "relapse", "inactive",
-         "remission", "resolved", "unknown"]).sum()
-
-    clinical_status_coding_display_check = df[
-        "clinicalStatus_coding_display"].isin(
-        ["active", "recurrence", "relapse", "inactive",
-         "remission", "resolved", "unknown"]).sum()
-
-    # coding system
-    code_coding_code_check = df["code_coding_code"].isin(["C18.0",
-               "C18.1", "C18.2", "C18.3", "C18.4", "C18.5", "C18.6",
-               "C18.7", "C18.8", "C18.9", "C19", "C20"]).sum()
-
-    code_coding_display_check = df["code_coding_display"].isin([
-        "Malignant neoplasm of cecum",
-        "Malignant neoplasm of appendix",
-        "Malignant neoplasm of ascending colon",
-        "Malignant neoplasm of hepatic flexure",
-        "Malignant neoplasm of transverse colon",
-        "Malignant neoplasm of splenic flexure",
-        "Malignant neoplasm of descending colon",
-        "Malignant neoplasm of sigmoid colon",
-        "Malignant neoplasm of overlapping sites of colon",
-        "Malignant neoplasm of colon, unspecified",
-        "Malignant neoplasm of rectosigmoid junction",
-        "Malignant neoplasm of rectum"]).sum()
-
-    code_text_check = df["code_text"].isin([
-        "C18.0 Malignant neoplasm of cecum",
-        "C18.1 Malignant neoplasm of appendix",
-        "C18.2 Malignant neoplasm of ascending colon",
-        "C18.3 Malignant neoplasm of hepatic flexure",
-        "C18.4 Malignant neoplasm of transverse colon",
-        "C18.5 Malignant neoplasm of splenic flexure",
-        "C18.6 Malignant neoplasm of descending colon",
-        "C18.7 Malignant neoplasm of sigmoid colon",
-        "C18.8 Malignant neoplasm of overlapping sites of colon",
-        "C18.9 Malignant neoplasm of colon, unspecified",
-        "C19 Malignant neoplasm of rectosigmoid junction",
-        "C20 Malignant neoplasm of rectum"
-    ]).sum()
-
-    result = {
-        "Records": ["Number of records", "recorded_date_check",
-                    "onset_date_time_check", "clinical_status_coding_code_check",
-                    "clinical_status_coding_display_check", "code_coding_code_check",
-                    "code_coding_display_check", "code_text_check"],
-        "Count": [count_of_rows, recorded_date_check,
-                  onset_date_time_check, count_of_rows - clinical_status_coding_code_check,
-                  clinical_status_coding_display_check, count_of_rows - code_coding_code_check,
-                  count_of_rows - code_coding_display_check, code_text_check]
-    }
-
-    dff = pd.DataFrame(result)
-    fig = px.bar(dff, x='Records', y='Count')
-    return fig
-
-
-def conformance_specimen(df):
-    """
-    Data quality check for conformance of Resource Specimen.
-
-    :param df: Specimen data frame.
-    :return:
-        Graph of conformance.
-    """
-    count_of_rows = df.shape[0]
-
-    # type text
-    type_text_check = df["type_text"].isin(["Tumor", "Other", "Healthy colon tissue"]).sum()
-
-    # collected Date Time
-    df["collection_collectedDateTime"] = \
-        pd.to_datetime(df["collection_collectedDateTime"], errors="coerce")
-    collection_collectedDateTime_check = df.isnull()["collection_collectedDateTime"].sum()
-
-    result = {
-        "Records": ["Number of records", "type_text_check", "collection_collectedDateTime_check"],
-        "Count": [count_of_rows, count_of_rows - type_text_check, collection_collectedDateTime_check]
-    }
-
-    dff = pd.DataFrame(result)
-    fig = px.bar(dff, x='Records', y='Count')
-    return fig
-
-
-def conformance_relational(df, server):
-    """
-    Data quality check for relational conformance of Resource.
-
-    :param df: Data frame.
-    :param server: FHIR server.
-    :return:
-        Graph of relational conformance.
-    """
-    count_of_rows = df.shape[0]
-    count_of_invalid_references = 0
-
-    for index in df.index:
-        link = df['id'][index]
-        subject_reference = df['subject_reference'][index]
-        resource_type = df["resourceType"][index]
-        try:
-            server.request_json('http://localhost:8080/fhir/' + subject_reference)
-        except:
-            count_of_invalid_references += 1
-    result = {
-        "Records": ["Number of records", "Invalid references"],
-        "Count": [count_of_rows, count_of_invalid_references]
-    }
-    dff = pd.DataFrame(result)
-    fig = px.bar(dff, x='Records', y='Count')
-    return fig
-
-
-def get_birthDay(pdf, subject_reference):
-    """
-    Helper function for conformance_computational.
-
-    :param pdf: Patient data frame.
-    :param subject_reference: Patient id.
-    :return:
-        Birthday of Patient.
-    """
-    subject_reference_split = subject_reference.split("/")
-    patient_id = None
-    if len(subject_reference_split) == 2:
-        patient_id = subject_reference_split[1]
-    birthDate = None
-    if patient_id is not None:
-        patient = pdf.loc[pdf['id'] == patient_id]
-        if not patient.empty:
-            patient = patient.iloc[0]
-            birthDate = patient['birthDate']
-    return birthDate
-
-
-def conformance_computational(pdf, sdf, cdf):
-    """
-    Data quality check for computational conformance
-
-    :param pdf: Patient data frame.
-    :param sdf: Specimen data frame.
-    :param cdf: Condition data frame.
-    :return:
-        Graph of computational conformance.
-    """
-    count_invalid_collection_collectedDateTime = 0
-    for index in sdf.index:
-        collection_collectedDateTime = sdf["collection_collectedDateTime"][index]
-        subject_reference = sdf['subject_reference'][index]
-        birthDay = get_birthDay(pdf, subject_reference)
-        if birthDay is not None:
-            if birthDay > collection_collectedDateTime:
-                count_invalid_collection_collectedDateTime += 1
-
-    onsetDateTime_count = 0
-    recordedDate_count = 0
-    for index in cdf.index:
-        onsetDateTime = cdf["onsetDateTime"][index]
-        recordedDate = cdf["recordedDate"][index]
-
-        if index < len(sdf.index):
-            subject_reference = sdf['subject_reference'][index]
-            birthDay = get_birthDay(pdf, subject_reference)
-        if birthDay is not None:
-            if birthDay > onsetDateTime:
-                onsetDateTime_count += 1
-            if birthDay > recordedDate:
-                recordedDate_count += 1
-
-    result = {
-        "Records": ["Number of records in specimens",
-                    "Invalid collection_collectedDateTime",
-                    "Number of records in conditions",
-                    "Invalid onsetDateTime", "Invalid recordedDate"],
-        "Count": [sdf.shape[0], count_invalid_collection_collectedDateTime,
-                  cdf.shape[0], onsetDateTime_count, recordedDate_count]
-    }
-    dff = pd.DataFrame(result)
-    fig = px.scatter(dff, x='Records', y='Count')
     return fig
 
 
@@ -1984,3 +1760,183 @@ def pnx_and_missing_uicc_stage(odf):
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
     return fig
+
+
+# reports
+# 4 + 14
+def create_plot_without_preservation_mode(pdf, sdf):
+    """
+    Report # 4 + 14
+    Original description: Patients without sample_id.
+
+    Args:
+        pdf: Patient data frame.
+        sdf: Specimen data frame.
+
+    Returns:
+        Graph of result.
+
+    """
+    pdf_copy = pdf.copy()
+    sdf_copy = sdf.copy()
+    sdf_copy["subject"] = sdf_copy["subject"].apply(lambda x: x.split("/")[1])
+    result = pd.merge(pdf_copy, sdf_copy, how="inner", on=["subject"])
+    all = result.shape[0]
+    result = result[(result['type_display'].isnull() | result['type_code'].isnull())]
+
+    failures = result.shape[0]
+
+    # filter all failures
+    failed_rows = result
+    failed_rows.to_csv('reports/fhir/extra/missing_preservation_mode.csv', index=False)
+
+    result = {
+        "Records": ["Number of records", "missing_preservation_mode"],
+        "Count": [all, failures]
+    }
+    dff = pd.DataFrame(result)
+    fig = px.bar(dff, x='Records', y='Count')
+    return fig
+
+
+# 12
+def create_plots_without_response_to_therapy(pdf, rdf):
+    """
+    Report # 12
+    Original description: Patients without response to therapy values.
+
+    Args:
+        pdf: Patient data frame.
+        rdf: Response data frame.
+
+    Returns:
+        Graph of result.
+
+    """
+    pdf_copy = pdf.copy()
+    rdf_copy = rdf.copy()
+    rdf_copy["subject"] = rdf_copy["subject"].apply(lambda x: x.split("/")[1])
+    result = pd.merge(pdf_copy, rdf_copy, how="inner", on=["subject"])
+    all = result.shape[0]
+
+    result = result[(result['date'].isnull()) | result['code'].isnull() | result['display'].isnull()]
+
+    failures = result.shape[0]
+
+    # filter all failures
+    failed_rows = result
+    failed_rows.to_csv('reports/fhir/extra/patient_with_response_to_therapy_missing_fields.csv', index=False)
+
+    result = {
+        "Records": ["Number of records", "patient_with_response_to_therapy_missing_fields"],
+        "Count": [all, failures]
+    }
+    dff = pd.DataFrame(result)
+    fig = px.bar(dff, x='Records', y='Count')
+    return fig
+
+
+# 23 - 34 are not data quality checks, but helper functions
+
+
+# 40
+def get_patients_with_preservation_mode_but_without_ffpe(pdf, sdf):
+    """
+    Report # 40
+    Original description: Patients with preservation mode not equal FFPE.
+
+    Args:
+        pdf: Patient data frame.
+        sdf: Specimen data frame.
+
+    Returns:
+        Graph of result.
+
+    """
+    pdf_copy = pdf.copy()
+    sdf_copy = sdf.copy()
+    sdf_copy["subject"] = sdf_copy["subject"].apply(lambda x: x.split("/")[1])
+    result = pd.merge(pdf_copy, sdf_copy, how="inner", on=["subject"])
+    all = result.shape[0]
+    result = result[result['type_display'].notnull()]
+
+    # check if display end is equal to "FFPE"
+    result["result"] = result.apply(lambda x: True if (x["type_display"] is not None and x["type_display"][-6:] != "(FFPE)") else False, axis=1)
+    result = result[result["result"] == True]
+
+    failures = result.shape[0]
+
+    # filter all failures
+    failed_rows = result
+    failed_rows.to_csv('reports/fhir/extra/preservation_mode_but_NO_FFPE.csv', index=False)
+
+    result = {
+        "Records": ["Number of records", "preservation_mode_but_NO_FFPE"],
+        "Count": [all, failures]
+    }
+    dff = pd.DataFrame(result)
+    fig = px.bar(dff, x='Records', y='Count')
+    return fig
+
+
+# 42
+def treatment_after_complete_response_without_recurrence_diagnosis(pdf, response_df, condition_df, recurrence_df):
+    """
+    Report # 42
+    Description: Start treatment after previous Complete response without Recurrence diagnosis.
+    Works only with responses data frame, because all treatment are not mapped.
+    Original name: getPatientsWhereNewTreatmentAfterCompleteResponseButNoProgressiveDiseaseOrTimeofRecurrenceAfterIt
+
+    Args:
+        pdf: Patient data frame.
+        response_df: Response data frame.
+        condition_df: Condition data frame.
+        recurrence_df: Recurrence diagnosis.
+
+    Returns:
+        Graph of result.
+
+    """
+    pdf_copy = pdf.copy()
+    all = response_df.shape[0]
+    recurrence_df_copy = recurrence_df.copy()
+    condition_df_copy = condition_df.copy()
+    response_df_copy = response_df.copy()
+
+    # create recurrence date
+    recurrence_df_copy = pd.merge(recurrence_df_copy, condition_df_copy, how="inner", on=["subject"])
+    recurrence_df_copy["date_recurrence"] = recurrence_df_copy["recorded_date"] + pd.to_timedelta(recurrence_df_copy["recurrence"]*7,unit='D')
+
+    response_df_copy["subject"] = response_df_copy["subject"].apply(lambda x: x.split("/")[1])
+    recurrence_df_copy["subject"] = recurrence_df_copy["subject"].apply(lambda x: x.split("/")[1])
+    result = pd.merge(pdf_copy, recurrence_df_copy, how="left", on=["subject"])
+    result = pd.merge(result, response_df_copy, how="left", on=["subject"])
+    result = result[result['date'].notnull()]
+
+    # group by "subject" then sort by response "date" within group
+    result = result.groupby("subject").apply(lambda x: x.sort_values(by="date", ascending=True))
+
+    # delete last records per patient
+    result["last_record"] = result['subject'].shift(-1).combine(result['subject'], lambda x1, x2: True if ((x1 and x2) and (x1 != x2)) else False)
+    result['interval_between_responses'] = result['date'].shift(-1).combine(result['date'], lambda x1, x2: (x2, x1) if x1 and x2 else None)
+    result = result[result["last_record"] == False]
+    result = result[((result["display"] == "Patient cured (finding)") &  (result['interval_between_responses'] is not None))]
+
+    if not result.empty:
+        result["result"] = result.apply(lambda x: True if (not (pd.isna(x["recurrence"])) and
+                                                    (x["interval_between_responses"][0] <= x["date_recurrence"] <= x["interval_between_responses"][1])) else False, axis=1)
+        result = result[result["result"] == False]
+    failures = result.shape[0]
+
+    # filter all failures
+    failed_rows = result
+    failed_rows.to_csv('reports/fhir/extra/treatment_after_complete_response_without_recurrence_diagnosis.csv', index=False)
+
+    result = {
+        "Records": ["Number of records", "treatment_after_complete_response_without_recurrence_diagnosis"],
+        "Count": [all, failures]
+    }
+    dff = pd.DataFrame(result)
+    fig = px.bar(dff, x='Records', y='Count')
+    return fig
+
