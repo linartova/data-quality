@@ -1,8 +1,8 @@
-function downloadGraphsFhirZIP() {
+function downloadGraphsFhirExtraZIP() {
     window.location.href = '/download_graphs_fhir_zip_extra';
 }
 
-function downloadFailuresFhirZIP() {
+function downloadFailuresFhirExtraZIP() {
     window.location.href = '/download_failures_fhir_zip_extra';
 }
 
