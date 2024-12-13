@@ -534,7 +534,7 @@
       {"name": "Preservation mode", "dataelement_id": "Dataelement_55_2"}
     ],
     "FHIR": "Missing",
-    "extra_FHIR": "Equivalent",
+    "extra_FHIR": "Equivalent, together with report # 4.",
     "OMOP": "Missing"
   },
   {

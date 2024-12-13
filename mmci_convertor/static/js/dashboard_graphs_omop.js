@@ -1,8 +1,8 @@
-function downloadGraphsFhirZIP() {
+function downloadGraphsOmopZIP() {
     window.location.href = '/download_graphs_omop_zip';
 }
 
-function downloadFailuresFhirZIP() {
+function downloadFailuresOmopZIP() {
     window.location.href = '/download_failures_omop_zip';
 }
 
