@@ -13,6 +13,7 @@ from datetime import datetime
 from fhir_classes import Specimen, Patient, Condition
 from quality_checks_fhir import *
 
+
 def provide_server_connection(url):
     """
     Connects to FHIR server.
@@ -79,6 +80,7 @@ def read_xml_and_create_resources(file_name, smart):
     create_files(result, smart)
     return None
 
+
 def find_specimens(namespace, events):
     """
     Create a list of all specimens of one patient.
@@ -133,6 +135,7 @@ def specimen_mapping(sample_material_type, preservation_mode):
     if sample_material_type == "Other" and preservation_mode == "Other":
         return "tissue-other", "Other tissue storage"
     return None
+
 
 def find_histopathology(namespace, events):
     """

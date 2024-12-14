@@ -554,8 +554,8 @@ def sus_short_pharma(cdf, ddf):
     fig_dff = px.bar(dff, x='Records', y='Count')
     return fig_dff
 
-# reports
 
+# reports
 # 1 + 2
 def missing_specimen_date(pdf, sdf):
     """
@@ -618,7 +618,9 @@ def patients_without_specimen_source_id(pdf, sdf):
     fig_dff = px.bar(dff, x='Records', y='Count')
     return fig_dff
 
+
 # 4 cannot be done, preservation mode is missing
+
 
 # 5
 def patients_without_specimen_source_value_concept_id(pdf, sdf):
@@ -1100,6 +1102,7 @@ def counts_of_records(pdf, odf, cdf, sdf, ddf, prdf):
 # 36, 37, 38, 39 is done in completeness
 
 # 40, 42 cannot be done, conversion done have Responce and FFPE
+
 
 # 41
 def get_patients_without_surgery(pdf, prdf):

@@ -140,6 +140,7 @@ def uniqueness(df, name):
     df.to_csv("reports/fhir/uniqueness" + name + ".csv", index=False)
     return fig
 
+
 def conformance_patient(df):
     """
     Data quality check for conformance of Resource Patient.
@@ -164,7 +165,6 @@ def conformance_patient(df):
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
     return fig
-
 
 
 def conformance_condition(df):

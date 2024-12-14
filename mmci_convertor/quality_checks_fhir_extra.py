@@ -274,7 +274,7 @@ def create_radiation_df(server):
             id = id[:-1]
             data = server.request_json('http://localhost:8080/fhir/Procedure/' + id)
 
-            # TODO subject
+            # subject
             subject = data.pop("subject")
             reference = subject.pop("reference")
             result["subject"] = reference
@@ -553,7 +553,7 @@ def create_targeted_therapy_dataframe(server):
             id = id[:-1]
             data = server.request_json('http://localhost:8080/fhir/Procedure/' + id)
 
-            # TODO subject
+            # subject
             subject = data.pop("subject")
             reference = subject.pop("reference")
             result["subject"] = reference
@@ -992,7 +992,6 @@ def surgery_and_histological_location_do_not_match_multiple(cdf, sdf):
     return fig
 
 
-# TODO co udělat s tou původní kontrolou s Other?
 def get_valid_surgeries(row):
     """
     Maps body site on right surgery
@@ -1101,11 +1100,8 @@ def mismatch_between_surgery_location_and_surgery_type(sdf):
     result["surgery_check"] = pd.Series(result_result).copy()
     result.reset_index(drop=True, inplace=True)
     for index, row in result.iterrows():
-        # result.at[index, 'surgery_check'] = get_valid_surgeries(row)
         result.loc[index, "surgery_check"] = get_valid_surgeries(row)
         # TODO opravit potom ostatní iterrows()
-        # result_result.append(get_valid_surgeries(row))
-    #result["surgery_check"] = pd.Series(result_result)
     result = result[result['surgery_check'] != "Valid"]
 
     failures = result.shape[0]
