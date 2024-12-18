@@ -35,6 +35,7 @@ def read_xml_and_parse(file_name):
                 sex = form.find(namespace + "Dataelement_85_1").text
             else:
                 sex = None
+            condition_start_date = None
             if form.find(namespace + "Dataelement_51_3") is not None:
                 date_diagnosis = form.find(namespace + "Dataelement_51_3").text
                 condition_start_date = datetime.strptime(date_diagnosis, '%Y-%m-%d').date()
@@ -74,6 +75,7 @@ def read_xml_and_parse(file_name):
                 diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
                 drug_exposures = find_drug_exposures(namespace, events, diagnosis)
             else:
+                diagnosis = None
                 drug_exposures = find_drug_exposures(namespace, events, None)
 
             # procedure occurrence
@@ -231,12 +233,13 @@ def find_drug_exposures(namespace, events, diagnosis):
             else:
                 end_week = None
 
+            drug_exposure_end_date = None
+            drug_exposure_start_date = None
             if diagnosis is not None:
-                drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
-                drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
-            else:
-                drug_exposure_end_date = None
-                drug_exposure_start_date = None
+                if start_week is not None:
+                    drug_exposure_start_date = (diagnosis + timedelta(weeks=start_week)).date()
+                if end_week is not None:
+                    drug_exposure_end_date = (diagnosis + timedelta(weeks=end_week)).date()
 
             if drug_source_value is None or len(drug_source_value) > 50:
                 drug_source_value = None
@@ -265,24 +268,36 @@ def find_procedures(namespace, events, initial_diagnosis):
                 namespace + "Dataelement_49_1") is not None:
                 primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_49_1").text
-            secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_67_1")
-            secondary_surgery = None if secondary_surgery_node is None else secondary_surgery_node.text
-            surgery_name, surgery_code = surgery_mapping(primary_surgery, secondary_surgery)
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_8_3").text)
-            date = initial_diagnosis + timedelta(weeks=start_week)
+                secondary_surgery = None if secondary_surgery_node is None else secondary_surgery_node.text
+
+                surgery_name, surgery_code = surgery_mapping(primary_surgery, secondary_surgery)
+            else:
+                secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                    namespace + "Dataelement_67_1")
+                secondary_surgery = None if secondary_surgery_node is None else secondary_surgery_node.text
+                surgery_name, surgery_code = surgery_mapping(None, secondary_surgery)
+
+            start_week = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_8_3")
+            if start_week is not None:
+                start_week = int(start_week.text)
+                date = initial_diagnosis + timedelta(weeks=start_week)
+            else:
+                date = None
             if surgery_code is not None:
                 result.append(ProcedureOccurrence(surgery_code, date, surgery_name))
 
         elif event.attrib.get("eventtype") == "Radiation therapy":
+            date = None
             if event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
                 namespace + "Dataelement_12_4") is not None:
-                start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
-                namespace + "Dataelement_12_4").text)
-            else:
-                start_week = None
-            date = initial_diagnosis + timedelta(weeks=start_week)
+                start_week = event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+                namespace + "Dataelement_12_4")
+                if start_week is not None:
+                    start_week = int(start_week.text)
+                    date = initial_diagnosis + timedelta(weeks=start_week)
             result.append(ProcedureOccurrence(4029715, date, "Radiation therapy"))
 
         # elif event.attrib.get("eventtype") == "Targeted Therapy":
@@ -562,9 +577,9 @@ def create_drug_exposures(drug_exposures: List[DrugExposure], ids, person_ids):
     for drug_exposure in drug_exposures:
         if drug_exposure.drug_concept_id is not None:
             result.append([ids, person_ids, drug_exposure.drug_concept_id,
-            drug_exposure.drug_exposure_start_date.date(),
+            drug_exposure.drug_exposure_start_date,
             drug_exposure.drug_exposure_start_datetime,
-            drug_exposure.drug_exposure_end_date.date(),
+            drug_exposure.drug_exposure_end_date,
             drug_exposure.drug_exposure_end_datetime,
             32809,
             drug_exposure.drug_source_value])

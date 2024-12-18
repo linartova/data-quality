@@ -526,6 +526,8 @@ def body_site_mapping_codes(location):
                      "C18.9": None,
                      "C19": 49832006,
                      "C20": 34402009}
+    if location is None:
+        return None
     for code in codes_mapping.keys():
         if location.find(code) != -1:
             return codes_mapping.get(code)
@@ -553,6 +555,8 @@ def body_site_mapping_names(location):
                      "C18.9": None,
                      "C19": "Structure of rectosigmoid junction",
                      "C20": "Rectum structure"}
+    if location is None:
+        return None
     for code in codes_mapping.keys():
         if location.find(code) != -1:
             return codes_mapping.get(code)
@@ -571,6 +575,8 @@ def mapp_surgery_radicality(radicality):
     codes = {"R0": ("Residual tumor stage R0 (finding)", 258254000),
              "R1": ("Residual tumor stage R1 (finding)", 278271003),
              "R2": ("Residual tumor stage R2 (finding)", 278272005)}
+    if radicality is None:
+        return None, None
     if radicality in codes.keys():
         return codes.get(radicality)
     return None, None

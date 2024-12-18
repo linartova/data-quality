@@ -486,6 +486,7 @@ def create_surgery_df(server):
 
             # bodySite code
             result["body_site_code"] = None
+            result["body_site_display"] = None
             body_site = data.get("bodySite")
             if body_site is not None:
                 body_site = body_site.pop()
@@ -497,12 +498,9 @@ def create_surgery_df(server):
                             body_site_code = body_site_coding.get("code")
                             result["body_site_code"] = body_site_code
 
-            # bodySite display
-            if "display" in body_site_coding:
-                body_site_display = body_site_coding.get("display")
-            else:
-                body_site_display = None
-            result["body_site_display"] = body_site_display
+                            # bodySite display
+                            body_site_display = body_site_coding.get("display")
+                            result["body_site_display"] = body_site_display
 
             # outcome code + display
             result["outcome_code"] = None
