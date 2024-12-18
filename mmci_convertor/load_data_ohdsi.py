@@ -22,31 +22,59 @@ def read_xml_and_parse(file_name):
     for element in root.iter():
         if element.tag == namespace + "BHPatient":
             # patient
-            patient_id = element.find(namespace + "Identifier").text
+            if element.find(namespace + "Identifier") is not None:
+                patient_id = element.find(namespace + "Identifier").text
+            else:
+                patient_id = None
             form = element.find(namespace +
                                 "Locations").find(namespace +
                                                   "Location").find(namespace +
                                                                    "BasicData").find(namespace +
                                                                                      "Form")
-            sex = form.find(namespace + "Dataelement_85_1").text
-            date_diagnosis = form.find(namespace + "Dataelement_51_3").text
-            age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
-            year_of_birth = int(date_diagnosis[:4]) - int(age_at_primary_diagnostic)
+            if form.find(namespace + "Dataelement_85_1") is not None:
+                sex = form.find(namespace + "Dataelement_85_1").text
+            else:
+                sex = None
+            if form.find(namespace + "Dataelement_51_3") is not None:
+                date_diagnosis = form.find(namespace + "Dataelement_51_3").text
+                condition_start_date = datetime.strptime(date_diagnosis, '%Y-%m-%d').date()
+            else:
+                date_diagnosis = None
+            if form.find(namespace + "Dataelement_3_1") is not None:
+                age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
+            else:
+                age_at_primary_diagnostic = None
+            if date_diagnosis is not None and age_at_primary_diagnostic is not None:
+                year_of_birth = int(date_diagnosis[:4]) - int(age_at_primary_diagnostic)
+            else:
+                year_of_birth = None
 
             # observation period
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
             observation_start_date = find_observation_start_date(namespace, events)
-            observation_end_date = form.find(namespace + "Dataelement_6_3").text
+            if observation_start_date is None:
+                observation_start_date = condition_start_date
+            if form.find(namespace + "Dataelement_6_3") is not None:
+                observation_end_date = form.find(namespace + "Dataelement_6_3").text
+                observation_end_date = datetime.strptime(observation_end_date, '%Y-%m-%d').date()
+            else:
+                observation_end_date = observation_start_date
 
             # condition occurrence
-            histopathology = find_histopathology(namespace, events).text
+            if find_histopathology(namespace, events) is not None:
+                histopathology = find_histopathology(namespace, events).text
+            else:
+                histopathology = None
 
             # specimen
             specimens = find_specimens(namespace, events)
 
             # drug exposure
-            diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
-            drug_exposures = find_drug_exposures(namespace, events, diagnosis)
+            if date_diagnosis is not None:
+                diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
+                drug_exposures = find_drug_exposures(namespace, events, diagnosis)
+            else:
+                drug_exposures = find_drug_exposures(namespace, events, None)
 
             # procedure occurrence
             procedures = find_procedures(namespace, events, diagnosis)
@@ -54,7 +82,7 @@ def read_xml_and_parse(file_name):
             # initialize classes
             result.append([Patient(patient_id, sex, year_of_birth),
                            ObservationPeriod(observation_start_date, observation_end_date),
-                           ConditionOccurrence(histopathology, date_diagnosis),
+                           ConditionOccurrence(histopathology, condition_start_date),
                            specimens,
                            drug_exposures,
                            procedures])
@@ -73,31 +101,36 @@ def find_diagnostic_procedures(namespace, form, diagnosis):
     """
     result = []
     # liver_imaging
-    liver_imaging = form.find(namespace + "Dataelement_61_5").text
-    if liver_imaging.find("Liver imaging - Done") != -1:
-        result.append(ProcedureOccurrence(4085576, diagnosis, "liver imaging"))
+    if form.find(namespace + "Dataelement_61_5") is not None:
+        liver_imaging = form.find(namespace + "Dataelement_61_5").text
+        if liver_imaging.find("Liver imaging - Done") != -1:
+            result.append(ProcedureOccurrence(4085576, diagnosis, "liver imaging"))
 
     # ct
-    ct = form.find(namespace + "Dataelement_31_3").text
-    if ct.find("CT - Done") != -1:
-        result.append(ProcedureOccurrence(4019823, diagnosis, "CT"))
+    if form.find(namespace + "Dataelement_31_3") is not None:
+        ct = form.find(namespace + "Dataelement_31_3").text
+        if ct.find("CT - Done") != -1:
+            result.append(ProcedureOccurrence(4019823, diagnosis, "CT"))
 
 
     # colonoscopy
-    colonoscopy = form.find(namespace + "Dataelement_88_1").text
-    if colonoscopy.find("Colonoscopy diagnostic exam - Positive") != -1:
-        result.append(ProcedureOccurrence(4249893, diagnosis, "colonoscopy"))
+    if form.find(namespace + "Dataelement_88_1") is not None:
+        colonoscopy = form.find(namespace + "Dataelement_88_1").text
+        if colonoscopy.find("Colonoscopy diagnostic exam - Positive") != -1:
+            result.append(ProcedureOccurrence(4249893, diagnosis, "colonoscopy"))
 
 
     # lung_imaging
-    lung_imaging = form.find(namespace + "Dataelement_63_4").text
-    if lung_imaging.find("Lung imaging - Done") != -1:
-        result.append(ProcedureOccurrence(4082968, diagnosis, "lung imaging"))
+    if form.find(namespace + "Dataelement_63_4") is not None:
+        lung_imaging = form.find(namespace + "Dataelement_63_4").text
+        if lung_imaging.find("Lung imaging - Done") != -1:
+            result.append(ProcedureOccurrence(4082968, diagnosis, "lung imaging"))
 
     # mri
-    mri = form.find(namespace + "Dataelement_30_3").text
-    if mri.find("MRI - Done") != -1:
-        result.append(ProcedureOccurrence(4013636, diagnosis, "MRI - Done"))
+    if form.find(namespace + "Dataelement_30_3") is not None:
+        mri = form.find(namespace + "Dataelement_30_3").text
+        if mri.find("MRI - Done") != -1:
+            result.append(ProcedureOccurrence(4013636, diagnosis, "MRI"))
 
 
     return result
@@ -144,9 +177,19 @@ def find_specimens(namespace, events):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
             sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
 
-            year_of_sample_connection = sample.find(namespace + "Dataelement_89_3").text
-            sample_material_type = sample.find(namespace + "Dataelement_54_2").text
-            sample_id = sample.find(namespace + "Dataelement_56_2").text
+            if sample.find(namespace + "Dataelement_89_3") is not None:
+                year_of_sample_connection = sample.find(namespace + "Dataelement_89_3").text
+                year_of_sample_connection = datetime.strptime(year_of_sample_connection, '%Y').date()
+            else:
+                year_of_sample_connection = None
+            if sample.find(namespace + "Dataelement_54_2") is not None:
+                sample_material_type = sample.find(namespace + "Dataelement_54_2").text
+            else:
+                sample_material_type = None
+            if sample.find(namespace + "Dataelement_56_2") is not None:
+                sample_id = sample.find(namespace + "Dataelement_56_2").text
+            else:
+                sample_id = None
 
             result.append(Specimen(sample_material_type, year_of_sample_connection, sample_id))
     return result
@@ -167,19 +210,35 @@ def find_drug_exposures(namespace, events, diagnosis):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Pharmacotherapy":
             pharmacotherapy = event.find(namespace + "LogitudinalData").find(namespace + "Form3")
 
-            drug_source_value = pharmacotherapy.find(namespace + "Dataelement_59_5").text
+            if pharmacotherapy.find(namespace + "Dataelement_59_5") is not None:
+                drug_source_value = pharmacotherapy.find(namespace + "Dataelement_59_5").text
+            else:
+                drug_source_value = None
             if drug_source_value is None or drug_source_value == "Other":
-                drug_source_value = pharmacotherapy.find(namespace + "Dataelement_81_3").text
+                if pharmacotherapy.find(namespace + "Dataelement_81_3") is not None:
+                    drug_source_value = pharmacotherapy.find(namespace + "Dataelement_81_3").text
+                else:
+                    drug_source_value = None
 
             drug_concept_id = drug_exposure_mapping(drug_source_value)
 
-            start_week = int(pharmacotherapy.find(namespace + "Dataelement_10_2").text)
-            end_week = int(pharmacotherapy.find(namespace + "Dataelement_11_2").text)
+            if pharmacotherapy.find(namespace + "Dataelement_10_2") is not None:
+                start_week = int(pharmacotherapy.find(namespace + "Dataelement_10_2").text)
+            else:
+                start_week = None
+            if pharmacotherapy.find(namespace + "Dataelement_11_2") is not None:
+                end_week = int(pharmacotherapy.find(namespace + "Dataelement_11_2").text)
+            else:
+                end_week = None
 
-            drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
-            drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
+            if diagnosis is not None:
+                drug_exposure_start_date = diagnosis + timedelta(weeks=start_week)
+                drug_exposure_end_date = diagnosis + timedelta(weeks=end_week)
+            else:
+                drug_exposure_end_date = None
+                drug_exposure_start_date = None
 
-            if len(drug_source_value) > 50:
+            if drug_source_value is None or len(drug_source_value) > 50:
                 drug_source_value = None
 
             if drug_concept_id is not None:
@@ -202,7 +261,9 @@ def find_procedures(namespace, events, initial_diagnosis):
     for event in events.findall(namespace + "Event"):
 
         if event.attrib.get("eventtype") == "Surgery":
-            primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+            if event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_49_1") is not None:
+                primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_49_1").text
             secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_67_1")
@@ -215,8 +276,12 @@ def find_procedures(namespace, events, initial_diagnosis):
                 result.append(ProcedureOccurrence(surgery_code, date, surgery_name))
 
         elif event.attrib.get("eventtype") == "Radiation therapy":
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+            if event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+                namespace + "Dataelement_12_4") is not None:
+                start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
                 namespace + "Dataelement_12_4").text)
+            else:
+                start_week = None
             date = initial_diagnosis + timedelta(weeks=start_week)
             result.append(ProcedureOccurrence(4029715, date, "Radiation therapy"))
 
@@ -256,10 +321,14 @@ def find_observation_start_date(namespace, events):
     for event in events.findall(namespace + "Event"):
         if "eventtype" in event.attrib:
             if event.attrib["eventtype"] == "Sample":
-                year_of_sample_collection.append((event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
+                if event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
+                    namespace + "Dataelement_89_3") is not None:
+                    year_of_sample_collection.append((event.find(namespace + "LogitudinalData").find(namespace + "Form1").find(
                     namespace + "Dataelement_89_3")).text)
     years = [datetime.strptime(year, '%Y') for year in year_of_sample_collection]
-    return min(years)
+    if years:
+        return min(years)
+    return None
 
 
 def retrieve_max_ids(cursor, schema, table):
@@ -342,7 +411,7 @@ def create_observation_period_data(observation: ObservationPeriod, ids, person_i
         Observation Period data prepared for INSERT command.
     """
     return [ids, person_ids, observation.start_date,
-            datetime.strptime(observation.end_date, '%Y-%m-%d').date(), 32809]
+            observation.end_date, 32809]
 
 
 def condition_mapping_codes(condition):
@@ -403,7 +472,7 @@ def create_condition_occurrences_data(condition: ConditionOccurrence, ids, perso
         Condition Occurrence data prepared for INSERT command.
     """
     return [ids, person_ids, condition_mapping_codes(condition.condition_concept_id),
-            datetime.strptime(condition.condition_start_date, '%Y-%m-%d').date(), 32809,
+            condition.condition_start_date, 32809,
             condition_mapping_names(condition.condition_source_value)]
 
 
@@ -452,7 +521,7 @@ def create_specimens(specimens: List[Specimen], ids, person_ids):
     result = []
     for specimen in specimens:
         result.append([ids, person_ids, specimen_mapping_numbers(specimen.specimen_concept_id), 32809,
-            datetime.strptime(specimen.specimen_date, '%Y').date(),
+            specimen.specimen_date,
             specimen.specimen_source_id, specimen_mapping_names(specimen.specimen_source_value)])
         ids += 1
     return result, ids
@@ -471,6 +540,8 @@ def drug_exposure_mapping(drug_concept_id):
                     "Oxaliplatin": 35603923,
                     "UFT": 40052183,
                     "Other": 0}
+    if drug_concept_id is None:
+        return 0
     for drug in drug_mapping.keys():
         if drug_concept_id.find(drug) != -1:
             return drug_mapping.get(drug)

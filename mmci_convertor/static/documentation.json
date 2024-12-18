@@ -357,7 +357,7 @@
     "OMOP": "Missing"
   },
   {
-    "Number": "1",
+    "Number": 1,
     "Name": "Report: createPlotWithSampleYears",
     "Description": "Filter patients with sample year value.",
     "Dataelement": [
@@ -368,7 +368,7 @@
     "OMOP": "Partial. Implemented in missing_specimen_date."
   },
   {
-    "Number": "2",
+    "Number": 2,
     "Name": "Report: createPlotWithoutSampleYears",
     "Description": "Filter patients without sample year value.",
     "Dataelement": [
@@ -379,7 +379,7 @@
     "OMOP": "Equivalent. Implemented in missing_specimen_date."
   },
   {
-    "Number": "3",
+    "Number": 3,
     "Name": "Report: createPlotWithoutSampleID",
     "Description": "Filter patients without sample ID value.",
     "Dataelement": [
@@ -390,7 +390,7 @@
     "OMOP": "Equivalent. Implemented in patients_without_specimen_source_id."
   },
   {
-    "Number": "4",
+    "Number": 4,
     "Name": "Report: createPlotWithoutPreservationMode",
     "Description": "Filter patients without Preservation Mode value.",
     "Dataelement": [
@@ -401,7 +401,7 @@
     "OMOP": "Missing"
   },
   {
-    "Number": "5",
+    "Number": 5,
     "Name": "Report: createPlotWithoutMaterialType",
     "Description": "Filter patients without Material Type value.",
     "Dataelement": [
@@ -412,7 +412,7 @@
     "OMOP": "Equivalent. Implemented in patients_without_specimen_source_value_concept_id."
   },
   {
-    "Number": "6",
+    "Number": 6,
     "Name": "Report: createPlotsWithoutHistoValues",
     "Description": "Create plots with missing Histopathology values.",
     "Dataelement": [
@@ -431,7 +431,7 @@
     "OMOP": "Partially. Implemented in patients_without_condition_values, only for Dataelement_92_1 and Dataelement_51_3 (name Date of diagnosis)."
   },
   {
-    "Number": "7",
+    "Number": 7,
     "Name": "Report: createPlotsWithoutSurgeryValues",
     "Description": "Create plots with missing Surgery values.",
     "Dataelement": [
@@ -445,7 +445,7 @@
     "OMOP": "Partially. Implemented in patients_without_surgery_values, only for Dataelement_8_3, Dataelement_49_1."
   },
   {
-    "Number": "8",
+    "Number": 8,
     "Name": "Report: createPlotsWithoutPatientValues",
     "Description": "Create plots with missing Patient values.",
     "Dataelement": [
@@ -469,7 +469,7 @@
     "OMOP": "Partially. Implemented in createPlotsWithoutPatientValues, only for Dataelement_3_1, Dataelement_85_1, Dataelement_88_1, Dataelement_31_3, Dataelement_61_5, Dataelement_63_4, Dataelement_30_3."
   },
   {
-    "Number": "9",
+    "Number": 9,
     "Name": "Report: createPlotsWithoutTargetedTherapy",
     "Description": "Create plots with missing Targeted therapy values.",
     "Dataelement": [
@@ -481,7 +481,7 @@
     "OMOP": "Partially. Implemented in createPlotsWithoutTargetedTherapy, only for Dataelement_35_3."
   },
   {
-    "Number": "10",
+    "Number": 10,
     "Name": "Report: createPlotsWithoutPharmacotherapy",
     "Description": "Create plots with missing Pharmacotherapy values.",
     "Dataelement": [
@@ -494,7 +494,7 @@
     "OMOP": "Equivalent."
   },
   {
-    "Number": "11",
+    "Number": 11,
     "Name": "Report: createPlotsWithoutRadiationTherapy",
     "Description": "Create plots with missing Radiation Therapy values.",
     "Dataelement": [
@@ -506,7 +506,7 @@
     "OMOP": "Partially. Implemented in createPlotsWithoutRadiationTherapy, only for Dataelement_12_4."
   },
   {
-    "Number": "12",
+    "Number": 12,
     "Name": "Report: createPlotsWithoutResponseToTherapy",
     "Description": "Create plots with missing Response to therapy values.",
     "Dataelement": [
@@ -518,7 +518,7 @@
     "OMOP": "Missing"
   },
   {
-    "Number": "13",
+    "Number": 13,
     "Name": "Report: createPlotForAllMissedValues",
     "Description": "Create plot for all missing values.",
     "Dataelement": [],
@@ -527,7 +527,7 @@
     "OMOP": "Equivalent. Implemented in completeness for all values."
   },
   {
-    "Number": "14",
+    "Number": 14,
     "Name": "Report: getMissingSampleWithoutPreserverationMode",
     "Description": "Filter patients without Preservation Mode value.",
     "Dataelement": [
@@ -565,7 +565,7 @@
     "OMOP": "Partially. 35 implemented as counts_of_records, the rest is in the completeness."
   },
   {
-    "Number": "40",
+    "Number": 40,
     "Name": "Report: getPatientsWithPreservationModeBUTWithoutFFPE",
     "Description": "Filter patients with other Preservation Mode then FFPE.",
     "Dataelement": [
@@ -576,7 +576,7 @@
     "OMOP": "Missing"
   },
   {
-    "Number": "41",
+    "Number": 41,
     "Name": "Report: getPatientsWithoutSurgery",
     "Description": "Filter patients without Surgery form.",
     "Dataelement": [],
@@ -585,7 +585,7 @@
     "OMOP": "Equivalent"
   },
   {
-    "Number": "42",
+    "Number": 42,
     "Name": "Report: getPatientsWhereNewTreatmentAfterCompleteResponseButNoProgressiveDiseaseOrTimeofRecurrenceAfterIt",
     "Description": "Patient with new treatment after CompleteResponse, but no ProgressiveDisease or TimeofRecurrence after it - Note could include false-positive cases",
     "Dataelement": [

@@ -50,32 +50,51 @@ def read_xml_and_create_resources(file_name, smart):
     for element in root.iter():
         if element.tag == namespace + "BHPatient":
             # patient
-            patient_id = element.find(namespace + "Identifier").text
+            if element.find(namespace + "Identifier") is not None:
+                patient_id = element.find(namespace + "Identifier").text
+            else:
+                patient_id = None
             form = element.find(namespace +
                                 "Locations").find(namespace +
                                                   "Location").find(namespace +
                                                                    "BasicData").find(namespace +
                                                                                      "Form")
-            sex = form.find(namespace + "Dataelement_85_1")
-            age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
+            if form.find(namespace + "Dataelement_85_1") is not None:
+                sex = form.find(namespace + "Dataelement_85_1").text
+            else:
+                sex = None
+
+            if form.find(namespace + "Dataelement_3_1") is not None:
+                age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
+            else:
+                age_at_primary_diagnostic = None
 
             # condition
             date_diagnosis = form.find(namespace + "Dataelement_51_3")
             if date_diagnosis is not None:
                 date_diagnosis = date_diagnosis.text
-            events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
-            histopathology = find_histopathology(namespace, events)
 
-            # patient
-            diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
-            birth_date = FHIRDate(str(diagnosis.year - int(age_at_primary_diagnostic)))
-            patient = Patient(patient_id, sex.text, birth_date)
+                # patient
+                diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
+                if age_at_primary_diagnostic is not None:
+                    birth_date = FHIRDate(str(diagnosis.year - int(age_at_primary_diagnostic)))
+                else:
+                    birth_date = None
+            else:
+                date_diagnosis = None
+                birth_date = None
+            patient = Patient(patient_id, sex, birth_date)
+            events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
+            if find_histopathology(namespace, events) is not None:
+                histopathology = find_histopathology(namespace, events).text
+            else:
+                histopathology = None
 
             # specimen
-            specimens = find_specimens(namespace, events)
+            specimens = find_specimens(namespace, events).copy()
 
             result.append([patient,
-                           Condition(histopathology.text, date_diagnosis),
+                           Condition(histopathology, date_diagnosis),
                            specimens])
     create_files(result, smart)
     return None
@@ -95,10 +114,25 @@ def find_specimens(namespace, events):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
 
             sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
-            year_of_sample_connection = int(sample.find(namespace + "Dataelement_89_3").text)
-            sample_material_type = sample.find(namespace + "Dataelement_54_2").text
-            preservation_mode = sample.find(namespace + "Dataelement_55_2").text
-            identifier = sample.find(namespace + "Dataelement_56_2").text
+            if sample.find(namespace + "Dataelement_89_3") is not None:
+                year_of_sample_connection = int(sample.find(namespace + "Dataelement_89_3").text)
+            else:
+                year_of_sample_connection = None
+
+            if sample.find(namespace + "Dataelement_54_2") is not None:
+                sample_material_type = sample.find(namespace + "Dataelement_54_2").text
+            else:
+                sample_material_type = None
+
+            if sample.find(namespace + "Dataelement_55_2") is not None:
+                preservation_mode = sample.find(namespace + "Dataelement_55_2").text
+            else:
+                preservation_mode = None
+
+            if sample.find(namespace + "Dataelement_56_2") is not None:
+                identifier = sample.find(namespace + "Dataelement_56_2").text
+            else:
+                identifier = None
 
             code, display = specimen_mapping(sample_material_type, preservation_mode)
 
@@ -134,7 +168,7 @@ def specimen_mapping(sample_material_type, preservation_mode):
         return "other-tissue-ffpe", "Other tissue (FFPE)"
     if sample_material_type == "Other" and preservation_mode == "Other":
         return "tissue-other", "Other tissue storage"
-    return None
+    return None, None
 
 
 def find_histopathology(namespace, events):
@@ -183,10 +217,13 @@ def create_patient(patient_info, smart_client):
         The url of Resource Patient.
     """
     patient = p.Patient()
-    patient.birthDate = patient_info.birth_date
-    patient.gender = patient_info.sex
+    if patient_info.birth_date is not None:
+        patient.birthDate = patient_info.birth_date
+    if patient_info.sex is not None:
+        patient.gender = patient_info.sex
     patient.identifier = [Identifier()]
-    patient.identifier[0].value = patient_info.identifier
+    if patient_info.identifier is not None:
+        patient.identifier[0].value = patient_info.identifier
 
     response = store_resources(smart_client, patient, "Patient")
     resource_on_server = response.content
@@ -205,7 +242,8 @@ def create_condition(condition_info, patient_id, smart_client):
         The url of Resource Condition.
     """
     condition = c.Condition()
-    condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
+    if condition_info.date_diagnosis is not None:
+        condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
     # Clinical Status
 
@@ -220,8 +258,9 @@ def create_condition(condition_info, patient_id, smart_client):
     condition.clinicalStatus = clinical_status
 
     # onsetDateTime
-    date_time = FHIRDate(condition_info.date_diagnosis)
-    condition.onsetDateTime = date_time
+    if condition_info.date_diagnosis is not None:
+        date_time = FHIRDate(condition_info.date_diagnosis)
+        condition.onsetDateTime = date_time
 
     # subject (patient)
     condition.subject = FHIRReference({'reference': "Patient/" + patient_id})
@@ -239,20 +278,21 @@ def create_condition(condition_info, patient_id, smart_client):
                "C18.9": "Malignant neoplasm of colon, unspecified",
                "C19": "Malignant neoplasm of rectosigmoid junction",
                "C20": "Malignant neoplasm of rectum"}
-    diagnosis_index = condition_info.histopathology.find("C", -5)
-    code = condition_info.histopathology[diagnosis_index:]
-    coding = Coding()
-    coding.code = code
-    coding.display = mapping[code]
-    coding.system = "http://hl7.org/fhir/sid/icd-10"
+    if condition_info.histopathology is not None:
+        diagnosis_index = condition_info.histopathology.find("C", -5)
+        code = condition_info.histopathology[diagnosis_index:]
+        coding = Coding()
+        coding.code = code
+        coding.display = mapping[code]
+        coding.system = "http://hl7.org/fhir/sid/icd-10"
 
-    text = code + ": " + mapping[code]
+        text = code + ": " + mapping[code]
 
-    code_in_json = codeAbleConcept.CodeableConcept()
-    code_in_json.text = text
-    code_in_json.coding = [coding]
+        code_in_json = codeAbleConcept.CodeableConcept()
+        code_in_json.text = text
+        code_in_json.coding = [coding]
 
-    condition.code = code_in_json
+        condition.code = code_in_json
 
     response = store_resources(smart_client, condition, "Condition")
     resource_on_server = response.content
@@ -273,14 +313,17 @@ def create_specimen(patient_id, specimen_info, smart_client):
     specimen = s.Specimen()
 
     # identifier
-    identifier = s.identifier.Identifier()
-    identifier.value = specimen_info.identifier
-    specimen.identifier = [identifier]
+    if specimen_info.identifier is not None:
+        identifier = s.identifier.Identifier()
+        identifier.value = specimen_info.identifier
+        specimen.identifier = [identifier]
 
     # type.coding (code, display, system)
     coding = Coding()
-    coding.code = specimen_info.sample_material_type_code
-    coding.display = specimen_info.sample_material_type_display
+    if specimen_info.sample_material_type_code is not None:
+        coding.code = specimen_info.sample_material_type_code
+    if specimen_info.sample_material_type_display is not None:
+        coding.display = specimen_info.sample_material_type_display
     coding.system = "“https://fhir.bbmri.de/CodeSystem/SampleMaterialType"
 
     type = codeAbleConcept.CodeableConcept()
@@ -290,7 +333,8 @@ def create_specimen(patient_id, specimen_info, smart_client):
 
     # collection collected
     collection = SpecimenCollection()
-    collection.collectedDateTime = FHIRDate(str(specimen_info.year_of_sample_connection))
+    if specimen_info.year_of_sample_connection is not None:
+        collection.collectedDateTime = FHIRDate(str(specimen_info.year_of_sample_connection))
     specimen.collection = collection
 
     # type
@@ -338,7 +382,7 @@ def create_files(data, smart_client):
         patient_url, condition_url, specimen_urls = create_resources(record[0], record[1], record[2], smart_client)
         patients.append(patient_url)
         conditions.append(condition_url)
-        specimens = specimen_urls
+        specimens += specimen_urls
     file_patients_ids = open("patients_ids.txt", "w")
     file_conditions_ids = open("conditions_ids.txt", "w")
     file_specimens_ids = open("specimens_ids.txt", "w")

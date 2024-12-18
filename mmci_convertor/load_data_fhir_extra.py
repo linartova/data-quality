@@ -56,31 +56,57 @@ def read_xml_and_create_resources(file_name, smart):
     for element in root.iter():
         if element.tag == namespace + "BHPatient":
             # patient
-            patient_id = element.find(namespace + "Identifier").text
+            if element.find(namespace + "Identifier") is not None:
+                patient_id = element.find(namespace + "Identifier").text
+            else:
+                patient_id = None
             form = element.find(namespace +
                                 "Locations").find(namespace +
                                                   "Location").find(namespace +
                                                                    "BasicData").find(namespace +
                                                                                      "Form")
             sex = form.find(namespace + "Dataelement_85_1")
-            age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
-            vital_status = form.find(namespace + "Dataelement_5_2").text
-
-            overall_survival = form.find(namespace + "Dataelement_7_2").text
-            last_update = form.find(namespace + "Dataelement_6_3").text
+            if sex is not None:
+                sex = sex.text
+            if form.find(namespace + "Dataelement_3_1") is not None:
+                age_at_primary_diagnostic = form.find(namespace + "Dataelement_3_1").text
+            else:
+                age_at_primary_diagnostic = None
+            if form.find(namespace + "Dataelement_5_2") is not None:
+                vital_status = form.find(namespace + "Dataelement_5_2").text
+            else:
+                vital_status = None
+            if form.find(namespace + "Dataelement_7_2") is not None:
+                overall_survival = form.find(namespace + "Dataelement_7_2").text
+            else:
+                overall_survival = None
+            if form.find(namespace + "Dataelement_6_3") is not None:
+                last_update = form.find(namespace + "Dataelement_6_3").text
+            else:
+                last_update = None
             time_observation = TimeObservation(overall_survival, last_update)
 
-            date_diagnosis = form.find(namespace + "Dataelement_51_3").text
-            diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
-            birth_date = FHIRDate(str(diagnosis.year - int(age_at_primary_diagnostic)))
+            if form.find(namespace + "Dataelement_51_3") is not None:
+                date_diagnosis = form.find(namespace + "Dataelement_51_3").text
+                diagnosis = datetime.strptime(date_diagnosis, "%Y-%m-%d")
+            else:
+                diagnosis = None
+
+            if diagnosis is not None and age_at_primary_diagnostic is not None:
+                birth_date = FHIRDate(str(diagnosis.year - int(age_at_primary_diagnostic)))
+            else:
+                birth_date = None
 
             if vital_status != "ALIVE":
                 deceased_boolean = True
-                timestamp = form.find(namespace + "Dataelement_6_3").text
+                if form.find(namespace + "Dataelement_6_3") is not None:
+                    timestamp = form.find(namespace + "Dataelement_6_3").text
+                else:
+                    timestamp = None
             else:
                 deceased_boolean = False
                 timestamp = None
-            patient = Patient(patient_id, deceased_boolean, timestamp, sex.text, birth_date)
+            patient = Patient(patient_id, deceased_boolean, timestamp, sex, birth_date)
 
             # recurrence
             recurrence = form.find(namespace + "Dataelement_4_3")
@@ -89,6 +115,8 @@ def read_xml_and_create_resources(file_name, smart):
 
             # condition
             date_diagnosis = form.find(namespace + "Dataelement_51_3")
+            if date_diagnosis is not None:
+                date_diagnosis = date_diagnosis.text
             events = element.find(namespace + "Locations").find(namespace + "Location").find(namespace + "Events")
 
             # tnm
@@ -123,7 +151,7 @@ def read_xml_and_create_resources(file_name, smart):
 
             record = Record(patient, recurrence, time_observation, responses,
                            surgeries, radiations, targeteds, tnm,
-                           Condition(localization, date_diagnosis.text),
+                           Condition(localization, date_diagnosis),
                            specimens)
             result.append(record)
     create_files(result, smart)
@@ -165,11 +193,11 @@ def map_tnm_pn(nodes):
     nodes = nodes.split("-")[1][1:]
     codes = {"Nx","N0","N1", "N1(mi)","N1a","N1b","N1c","N2",
              "N2a","N2b","N2c","N3","N3a","N3b","N3c"}
+    if nodes == "NX":
+        return "NX", "Nx"
     for code in codes:
         if nodes == code:
-            if code == "Nx":
-                return code, code
-            elif code == "N1(mi)":
+            if code == "N1(mi)":
                 return code, "N1mi"
             else:
                 return code, code
@@ -212,7 +240,7 @@ def map_stage(stage):
     if stage.find("II A") != -1:
         return "IIA", "Stage " + "IIA"
     for code in codes:
-        if stage.find(code) != -1:
+        if stage == code:
             if code == "X":
                 return "okk", "Stage X"
             return code, "Stage " + code
@@ -331,20 +359,32 @@ def find_surgeries(namespace, events, initial_diagnosis):
 
         if event.attrib.get("eventtype") == "Surgery":
             primary_surgery = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_49_1").text
+                namespace + "Dataelement_49_1")
+            if primary_surgery is not None:
+                primary_surgery = primary_surgery.text
             secondary_surgery_node = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
                 namespace + "Dataelement_67_1")
             secondary_surgery = None if secondary_surgery_node is None else secondary_surgery_node.text
             surgery_name, surgery_code, note = map_surgery(primary_surgery, secondary_surgery)
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_8_3").text)
-            date = initial_diagnosis + timedelta(weeks=start_week)
-            time = date.strftime("%Y-%m-%d")
+            start_week = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
+                namespace + "Dataelement_8_3")
+            if start_week is not None:
+                start_week = int(start_week.text)
+                date = initial_diagnosis + timedelta(weeks=start_week)
+                time = date.strftime("%Y-%m-%d")
+            else:
+                time = None
             radicality = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_9_2").text
+                namespace + "Dataelement_9_2")
+            if radicality is not None:
+                radicality = radicality.text
             surgery_radicality_name, surgery_radicality_code = mapp_surgery_radicality(radicality)
             location = event.find(namespace + "LogitudinalData").find(namespace + "Form").find(
-                namespace + "Dataelement_93_1").text
+                namespace + "Dataelement_93_1")
+            if location is not None:
+                location = location.text
+            else:
+                location = None
             body_site_code = body_site_mapping_codes(location)
             body_site_name = body_site_mapping_names(location)
             if surgery_code is not None:
@@ -367,10 +407,14 @@ def find_radiation(namespace, events, initial_diagnosis):
     result = []
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Radiation therapy":
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
-                namespace + "Dataelement_12_4").text)
-            end_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
-                namespace + "Dataelement_13_2").text)
+            start_week = event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+                namespace + "Dataelement_12_4")
+            if start_week is not None:
+                start_week = int(start_week.text)
+            end_week = event.find(namespace + "LogitudinalData").find(namespace + "Form5").find(
+                namespace + "Dataelement_13_2")
+            if end_week is not None:
+                end_week = int(end_week.text)
             start_date = initial_diagnosis + timedelta(weeks=start_week)
             end_date = initial_diagnosis + timedelta(weeks=end_week)
             start = FHIRDate(start_date.strftime("%Y-%m-%d"))
@@ -394,10 +438,14 @@ def find_targeteds(namespace, events, initial_diagnosis):
     result = []
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Targeted Therapy":
-            start_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
-                namespace + "Dataelement_35_3").text)
-            end_week = int(event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
-                namespace + "Dataelement_36_1").text)
+            start_week = event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
+                namespace + "Dataelement_35_3")
+            if start_week is not None:
+                start_week = int(start_week.text)
+            end_week = event.find(namespace + "LogitudinalData").find(namespace + "Form6").find(
+                namespace + "Dataelement_36_1")
+            if end_week is not None:
+                end_week = int(end_week.text)
             start_date = initial_diagnosis + timedelta(weeks=start_week)
             end_date = initial_diagnosis + timedelta(weeks=end_week)
             start = FHIRDate(start_date.strftime("%Y-%m-%d"))
@@ -419,6 +467,8 @@ def map_response(response):
                "Specific response - Partial response" : (268910001, "Patient's condition improved (finding)"),
                "Specific response - Stable disease" : (359746009, "Patient's condition stable (finding)"),
                "Specific response - Progressive disease" : (271299001, "Patient's condition worsened (finding)")}
+    if response is None:
+        return None, None
     for message in mapping.keys():
         if response.find(message) != -1:
             return mapping.get(message)
@@ -442,9 +492,13 @@ def find_response(namespace, events, initial_diagnosis):
 
         if event.attrib.get("eventtype") == "Response to therapy":
             content = event.find(namespace + "LogitudinalData").find(namespace + "Form4").find(
-                namespace + "Dataelement_33_1").text
-            time = int(event.find(namespace + "LogitudinalData").find(namespace + "Form4").find(
-                namespace + "Dataelement_34_1").text)
+                namespace + "Dataelement_33_1")
+            if content is not None:
+                content = content.text
+            time = event.find(namespace + "LogitudinalData").find(namespace + "Form4").find(
+                namespace + "Dataelement_34_1")
+            if time is not None:
+                time = int(time.text)
             time = initial_diagnosis + timedelta(weeks=time)
             time = time.strftime("%Y-%m-%d")
             code, display = map_response(content)
@@ -536,10 +590,18 @@ def find_specimens(namespace, events):
         if "eventtype" in event.attrib and event.attrib.get("eventtype") == "Sample":
 
             sample = event.find(namespace + "LogitudinalData").find(namespace + "Form1")
-            year_of_sample_connection = FHIRDate(sample.find(namespace + "Dataelement_89_3").text)
-            sample_material_type = sample.find(namespace + "Dataelement_54_2").text
-            preservation_mode = sample.find(namespace + "Dataelement_55_2").text
-            identifier = sample.find(namespace + "Dataelement_56_2").text
+            year_of_sample_connection = sample.find(namespace + "Dataelement_89_3")
+            if year_of_sample_connection is not None:
+                year_of_sample_connection = FHIRDate(year_of_sample_connection.text)
+            sample_material_type = sample.find(namespace + "Dataelement_54_2")
+            if sample_material_type is not None:
+                sample_material_type = sample_material_type.text
+            preservation_mode = sample.find(namespace + "Dataelement_55_2")
+            if preservation_mode is not None:
+                preservation_mode = preservation_mode.text
+            identifier = sample.find(namespace + "Dataelement_56_2")
+            if identifier is not None:
+                identifier = identifier.text
 
             code, display = specimen_mapping(sample_material_type, preservation_mode)
 
@@ -575,7 +637,7 @@ def specimen_mapping(sample_material_type, preservation_mode):
         return "other-tissue-ffpe", "Other tissue (FFPE)"
     if sample_material_type == "Other" and preservation_mode == "Other":
         return "tissue-other", "Other tissue storage"
-    return None
+    return None, None
 
 
 def find_histopathology(namespace, events):
@@ -590,21 +652,37 @@ def find_histopathology(namespace, events):
     for event in events.findall(namespace + "Event"):
         if event.attrib.get("eventtype") == "Histopathology":
             localization =  event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_92_1").text
+                namespace + "Dataelement_92_1")
+            if localization is not None:
+                localization = localization.text
             uicc_version = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_73_3").text
+                namespace + "Dataelement_73_3")
+            if uicc_version is not None:
+                uicc_version = uicc_version.text
             tnm_t = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_71_1").text
+                namespace + "Dataelement_71_1")
+            if tnm_t is not None:
+                tnm_t = tnm_t.text
             tnm_n = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_77_1").text
+                namespace + "Dataelement_77_1")
+            if tnm_n is not None:
+                tnm_n = tnm_n.text
             tnm_m = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_75_1").text
+                namespace + "Dataelement_75_1")
+            if tnm_m is not None:
+                tnm_m = tnm_m.text
             stage = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_70_2").text
+                namespace + "Dataelement_70_2")
+            if stage is not None:
+                stage = stage.text
             grade = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_83_1").text
+                namespace + "Dataelement_83_1")
+            if grade is not None:
+                grade = grade.text
             morphology = event.find(namespace + "LogitudinalData").find(namespace + "Form2").find(
-                namespace + "Dataelement_91_1").text
+                namespace + "Dataelement_91_1")
+            if morphology is not None:
+                morphology = morphology.text
             return localization, tnm_t, tnm_n, tnm_m, stage, uicc_version, grade, morphology
 
 
@@ -661,13 +739,17 @@ def create_patient(patient_info, smart_client):
         The url of Resource Patient.
     """
     patient = p.Patient()
-    patient.birthDate = patient_info.birth_date
-    patient.gender = patient_info.sex
-    patient.deceasedBoolean = patient_info.deceased_boolean
+    if patient_info.birth_date is not None:
+        patient.birthDate = patient_info.birth_date
+    if patient_info.sex is not None:
+        patient.gender = patient_info.sex
+    if patient_info.deceased_boolean:
+        patient.deceasedBoolean = patient_info.deceased_boolean
     if patient_info.timestamp is not None:
         patient.deceasedDateTime = FHIRDate(patient_info.timestamp)
     patient.identifier = [Identifier()]
-    patient.identifier[0].value = patient_info.identifier
+    if patient_info.identifier is not None:
+        patient.identifier[0].value = patient_info.identifier
 
     response = store_resources(smart_client, patient, "Patient")
     resource_on_server = response.content
@@ -753,11 +835,15 @@ def create_time_observation(time_observation, patient_id, smart_client):
     observation.subject = FHIRReference({'reference': "Patient/" + patient_id})
 
     # effectiveDateTime
-    observation.effectiveDateTime = FHIRDate(time_observation.last_update)
+    if time_observation.last_update is not None:
+        observation.effectiveDateTime = FHIRDate(time_observation.last_update)
 
     # valueQuantity
     value = Quantity()
-    value.value = float(time_observation.overall_survival)
+    if time_observation is not None:
+        value.value = float(time_observation.overall_survival)
+    else:
+        value.value = 0
     value.unit = "wk"
     value.system = "http://unitsofmeasure.org"
     value.code = "wk"
@@ -811,9 +897,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # method
     uicc_version = Coding()
+    uicc_version.code = "unknown"
+    uicc_version.display = "unknown"
     uicc_version.system = "http://snomed.info/sct"
-    uicc_version.code = tnm.uicc_version_code
-    uicc_version.display = tnm.uicc_version_display
+    if tnm.uicc_version_code is not None:
+        uicc_version.code = tnm.uicc_version_code
+    if tnm.uicc_version_display is not None:
+        uicc_version.display = tnm.uicc_version_display
 
     method = codeAbleConcept.CodeableConcept()
     method.coding = [uicc_version]
@@ -822,9 +912,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # valueCodeableConcept - stage
     stage = Coding()
+    stage.code = "unknown"
+    stage.display = "unknown"
     stage.system = "urn:oid:2.16.840.1.113883.15.16"
-    stage.code = tnm.uicc_stage_code
-    stage.display = tnm.uicc_stage_display
+    if tnm.uicc_stage_code is not None:
+        stage.code = tnm.uicc_stage_code
+    if tnm.uicc_stage_display is not None:
+        stage.display = tnm.uicc_stage_display
 
     value_codeable_concept = codeAbleConcept.CodeableConcept()
     value_codeable_concept.coding = [stage]
@@ -847,9 +941,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # T value
     pt_value_coding = Coding()
+    pt_value_coding.code = "Unknown"
+    pt_value_coding.display = "Unknown"
     pt_value_coding.system = "urn:oid:2.16.840.1.113883.15.16"
-    pt_value_coding.code = tnm.pT_code
-    pt_value_coding.display = tnm.pT_display
+    if tnm.pT_code is not None:
+        pt_value_coding.code = tnm.pT_code
+    if tnm.pT_display is not None:
+        pt_value_coding.display = tnm.pT_display
 
     pt_value_wrapper = codeAbleConcept.CodeableConcept()
     pt_value_wrapper.coding = [pt_value_coding]
@@ -871,9 +969,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # N value
     pn_value_coding = Coding()
+    pn_value_coding.code = "unknown"
+    pn_value_coding.display = "unknown"
     pn_value_coding.system = "urn:oid:2.16.840.1.113883.15.16"
-    pn_value_coding.code = tnm.pN_code
-    pn_value_coding.display = tnm.pN_display
+    if tnm.pN_code is not None:
+        pn_value_coding.code = tnm.pN_code
+    if tnm.pN_display is not None:
+        pn_value_coding.display = tnm.pN_display
 
     pn_value_wrapper = codeAbleConcept.CodeableConcept()
     pn_value_wrapper.coding = [pn_value_coding]
@@ -894,9 +996,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # M value
     pm_value_coding = Coding()
+    pm_value_coding.code = "unknown"
+    pm_value_coding.display = "unknown"
     pm_value_coding.system = "urn:oid:2.16.840.1.113883.15.16"
-    pm_value_coding.code = tnm.pM_code
-    pm_value_coding.display = tnm.pM_display
+    if tnm.pM_code is not None:
+        pm_value_coding.code = tnm.pM_code
+    if tnm.pM_display is not None:
+        pm_value_coding.display = tnm.pM_display
 
     pm_value_wrapper = codeAbleConcept.CodeableConcept()
     pm_value_wrapper.coding = [pm_value_coding]
@@ -917,9 +1023,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # morphology value
     morpho_value_coding = Coding()
+    morpho_value_coding.code = "unknown"
+    morpho_value_coding.display = "unknown"
     morpho_value_coding.system = "http://snomed.info/sct"
-    morpho_value_coding.code = tnm.morphology_code
-    morpho_value_coding.display = tnm.morphology_display
+    if tnm.morphology_code is not None:
+        morpho_value_coding.code = tnm.morphology_code
+    if tnm.morphology_display is not None:
+        morpho_value_coding.display = tnm.morphology_display
 
     morpho_value_wrapper = codeAbleConcept.CodeableConcept()
     morpho_value_wrapper.coding = [morpho_value_coding]
@@ -940,9 +1050,13 @@ def create_tnm(tnm, patient_id, smart_client):
 
     # grade value
     grade_value_coding = Coding()
+    grade_value_coding.code = "unknown"
+    grade_value_coding.display = "unknown"
     grade_value_coding.system = "http://snomed.info/sct"
-    grade_value_coding.code = tnm.grade_code
-    grade_value_coding.display = tnm.grade_display
+    if tnm.grade_code is not None:
+        grade_value_coding.code = tnm.grade_code
+    if tnm.grade_display is not None:
+        grade_value_coding.display = tnm.grade_display
 
     grade_value_wrapper = codeAbleConcept.CodeableConcept()
     grade_value_wrapper.coding = [grade_value_coding]
@@ -975,52 +1089,57 @@ def create_surgery(surgery_info, patient_id, smart_client):
     surgery.status = "final"
 
     # code
-    coding = Coding()
-    coding.code = str(surgery_info.surgery_code)
-    coding.display = surgery_info.surgery_name
-    coding.system = "http://snomed.info/sct"
+    if surgery_info.surgery_code is not None and surgery_info.surgery_name is not None:
+        coding = Coding()
+        coding.code = str(surgery_info.surgery_code)
+        coding.display = surgery_info.surgery_name
+        coding.system = "http://snomed.info/sct"
 
-    clinical_status = codeAbleConcept.CodeableConcept()
-    clinical_status.coding = [coding]
+        clinical_status = codeAbleConcept.CodeableConcept()
+        clinical_status.coding = [coding]
 
-    surgery.code = clinical_status
+        surgery.code = clinical_status
 
     # subject
     surgery.subject = FHIRReference({'reference': "Patient/" + patient_id})
 
     # performedPeriod
-    performed_period = period.Period()
-    performed_period.start = FHIRDate(surgery_info.start)
+    if surgery_info.start is not None:
+        performed_period = period.Period()
+        performed_period.start = FHIRDate(surgery_info.start)
 
-    surgery.performedPeriod = performed_period
+        surgery.performedPeriod = performed_period
 
     # bodySite
-    coding = Coding()
-    coding.code = str(surgery_info.body_site_code)
-    coding.display = surgery_info.body_site_name
-    coding.system = "http://snomed.info/sct"
+    if surgery_info.body_site_code is not None and surgery_info.body_site_name is not None:
+        coding = Coding()
+        coding.code = str(surgery_info.body_site_code)
+        coding.display = surgery_info.body_site_name
+        coding.system = "http://snomed.info/sct"
 
-    body_site = codeAbleConcept.CodeableConcept()
-    body_site.coding = [coding]
+        body_site = codeAbleConcept.CodeableConcept()
+        body_site.coding = [coding]
 
-    surgery.bodySite = [body_site]
+        surgery.bodySite = [body_site]
 
     #  outcome
-    coding = Coding()
-    coding.code = str(surgery_info.surgery_radicality_code)
-    coding.display = surgery_info.surgery_radicality_name
-    coding.system = "http://snomed.info/sct"
+    if surgery_info.surgery_radicality_name and surgery_info.surgery_radicality_code:
+        coding = Coding()
+        coding.code = str(surgery_info.surgery_radicality_code)
+        coding.display = surgery_info.surgery_radicality_name
+        coding.system = "http://snomed.info/sct"
 
-    radicality = codeAbleConcept.CodeableConcept()
-    radicality.coding = [coding]
+        radicality = codeAbleConcept.CodeableConcept()
+        radicality.coding = [coding]
 
-    surgery.outcome = radicality
+        surgery.outcome = radicality
 
     # note
-    note = anno.Annotation()
-    note.text = surgery_info.note
+    if surgery_info.note is not None:
+        note = anno.Annotation()
+        note.text = surgery_info.note
 
-    surgery.note = [note]
+        surgery.note = [note]
 
     response = store_resources(smart_client, surgery, "Procedure")
     resource_on_server = response.content
@@ -1060,10 +1179,12 @@ def create_radiation_therapy(radiation_info, patient_id, smart_client):
 
     # start
     radiation_period = period.Period()
-    radiation_period.start = radiation_info.start
+    if radiation_info.start is not None:
+        radiation_period.start = radiation_info.start
 
     # end
-    radiation_period.end = radiation_info.end
+    if radiation_info.end is not None:
+        radiation_period.end = radiation_info.end
 
     radiation.performedPeriod = radiation_period
 
@@ -1115,18 +1236,20 @@ def create_response(response_info, patient_id, smart_client):
     observation.subject = FHIRReference({'reference': "Patient/" + patient_id})
 
     # effectiveDateTime
-    observation.effectiveDateTime = FHIRDate(response_info.time)
+    if response_info.time is not None:
+        observation.effectiveDateTime = FHIRDate(response_info.time)
 
     # valueCodeableConcept
-    coding = Coding()
-    coding.code = str(response_info.code)
-    coding.display = response_info.display
-    coding.system = "http://snomed.info/sct"
+    if response_info.code is not None and response_info.display is not None:
+        coding = Coding()
+        coding.code = str(response_info.code)
+        coding.display = response_info.display
+        coding.system = "http://snomed.info/sct"
 
-    valueCodeableConcept = codeAbleConcept.CodeableConcept()
-    valueCodeableConcept.coding = [coding]
+        valueCodeableConcept = codeAbleConcept.CodeableConcept()
+        valueCodeableConcept.coding = [coding]
 
-    observation.valueCodeableConcept = valueCodeableConcept
+        observation.valueCodeableConcept = valueCodeableConcept
 
     response = store_resources(smart_client, observation, "Observation")
     resource_on_server = response.content
@@ -1145,7 +1268,8 @@ def create_condition(condition_info, patient_id, smart_client):
         The url of Resource Condition.
     """
     condition = c.Condition()
-    condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
+    if condition_info.date_diagnosis is not None:
+        condition.recordedDate = FHIRDate(condition_info.date_diagnosis)
 
     # Clinical Status
 
@@ -1160,8 +1284,9 @@ def create_condition(condition_info, patient_id, smart_client):
     condition.clinicalStatus = clinical_status
 
     # onsetDateTime
-    date_time = FHIRDate(condition_info.date_diagnosis)
-    condition.onsetDateTime = date_time
+    if condition_info.date_diagnosis is not None:
+        date_time = FHIRDate(condition_info.date_diagnosis)
+        condition.onsetDateTime = date_time
 
     # subject (patient)
     condition.subject = FHIRReference({'reference': "Patient/" + patient_id})
@@ -1179,20 +1304,21 @@ def create_condition(condition_info, patient_id, smart_client):
                "C18.9": "Malignant neoplasm of colon, unspecified",
                "C19": "Malignant neoplasm of rectosigmoid junction",
                "C20": "Malignant neoplasm of rectum"}
-    diagnosis_index = condition_info.histopathology.find("C", -5)
-    code = condition_info.histopathology[diagnosis_index:]
-    coding = Coding()
-    coding.code = code
-    coding.display = mapping[code]
-    coding.system = "http://hl7.org/fhir/sid/icd-10"
+    if condition_info.histopathology is not None:
+        diagnosis_index = condition_info.histopathology.find("C", -5)
+        code = condition_info.histopathology[diagnosis_index:]
+        coding = Coding()
+        coding.code = code
+        coding.display = mapping[code]
+        coding.system = "http://hl7.org/fhir/sid/icd-10"
 
-    text = code + ": " + mapping[code]
+        text = code + ": " + mapping[code]
 
-    code_in_json = codeAbleConcept.CodeableConcept()
-    code_in_json.text = text
-    code_in_json.coding = [coding]
+        code_in_json = codeAbleConcept.CodeableConcept()
+        code_in_json.text = text
+        code_in_json.coding = [coding]
 
-    condition.code = code_in_json
+        condition.code = code_in_json
 
     response = store_resources(smart_client, condition, "Condition")
     resource_on_server = response.content
@@ -1213,25 +1339,28 @@ def create_specimen(patient_id, specimen_info, smart_client):
     specimen = s.Specimen()
 
     # collection collected
-    collection = SpecimenCollection()
-    collection.collectedDateTime = specimen_info.year_of_sample_connection
-    specimen.collection = collection
+    if specimen_info.year_of_sample_connection is not None:
+        collection = SpecimenCollection()
+        collection.collectedDateTime = specimen_info.year_of_sample_connection
+        specimen.collection = collection
 
     # identifier
-    identifier = Identifier()
-    identifier.value = specimen_info.identifier
-    specimen.identifier = [identifier]
+    if specimen_info.identifier:
+        identifier = Identifier()
+        identifier.value = specimen_info.identifier
+        specimen.identifier = [identifier]
 
     # type.coding (code, display, system)
-    coding = Coding()
-    coding.code = specimen_info.sample_material_type_code
-    coding.display = specimen_info.sample_material_type_display
-    coding.system = "“https://fhir.bbmri.de/CodeSystem/SampleMaterialType"
+    if specimen_info.sample_material_type_code is not None and specimen_info.sample_material_type_display is not None:
+        coding = Coding()
+        coding.code = specimen_info.sample_material_type_code
+        coding.display = specimen_info.sample_material_type_display
+        coding.system = "“https://fhir.bbmri.de/CodeSystem/SampleMaterialType"
 
-    type = codeAbleConcept.CodeableConcept()
-    type.coding = [coding]
+        type = codeAbleConcept.CodeableConcept()
+        type.coding = [coding]
 
-    specimen.type = type
+        specimen.type = type
 
     # subject
     specimen.subject = FHIRReference({'reference': "Patient/" + patient_id})
@@ -1274,10 +1403,12 @@ def create_targeted(targeted_info, patient_id, smart_client):
 
     # start
     targeted_period = period.Period()
-    targeted_period.start = targeted_info.start
+    if targeted_info.start is not None:
+        targeted_period.start = targeted_info.start
 
     # end
-    targeted_period.end = targeted_info.end
+    if targeted_info.end is not None:
+        targeted_period.end = targeted_info.end
 
     targeted.performedPeriod = targeted_period
 

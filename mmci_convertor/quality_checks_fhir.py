@@ -16,12 +16,22 @@ def create_patient_data_frame(server):
         for id in ids:
             id = id[:-1]
             dict = server.request_json('http://localhost:8080/fhir/Patient/' + id)
-            meta = dict.pop("meta")
-            dict["meta_versionId"] = meta["versionId"]
-            dict["meta_lastUpdated"] = meta["lastUpdated"]
+            meta = dict.get("meta")
+            if meta is not None:
+                dict.pop("meta")
+                dict["meta_versionId"] = meta.get("versionId")
+                dict["meta_lastUpdated"] = meta.get("lastUpdated")
+            else:
+                dict["meta_versionId"] = None
+                dict["meta_lastUpdated"] = None
 
-            identifier = dict.pop("identifier")[0]
-            dict["identifier_value"] = identifier["value"]
+            identifier = dict.get("identifier")
+            if identifier is not None:
+                dict.pop("identifier")
+                identifier = identifier[0]
+            else:
+                identifier = None
+            dict["identifier_value"] = identifier.get("value")
             dicts.append(dict)
 
     return pd.DataFrame(dicts)
@@ -41,21 +51,42 @@ def create_specimen_data_frame(server):
             id = id[:-1]
             dict = server.request_json('http://localhost:8080/fhir/Specimen/' + id)
 
-            meta = dict.pop("meta")
-            dict["meta_versionId"] = meta["versionId"]
-            dict["meta_lastUpdated"] = meta["lastUpdated"]
+            meta = dict.get("meta")
+            if meta is not None:
+                dict.pop("meta")
+                dict["meta_versionId"] = meta.get("versionId")
+                dict["meta_lastUpdated"] = meta.get("lastUpdated")
+            else:
+                dict["meta_versionId"] = None
+                dict["meta_lastUpdated"] = None
 
             # type
-            type = dict.pop("type")
-            type_coding = type.pop("coding").pop()
-            type_display = type_coding.pop("display")
-            dict["type_text"] = type_display
+            type = dict.get("type")
+            if type is not None:
+                dict.pop("type")
+                type_coding = type.get("coding")
+                if type_coding is not None:
+                    type_coding = type_coding.pop()
 
-            collection = dict.pop("collection")
-            dict["collection_collectedDateTime"] = collection["collectedDateTime"]
+                if type_coding is not None:
+                    type_display = type_coding.get("display")
+                    dict["type_text"] = type_display
+                    type_code = type_coding.get("code")
+                    dict["type_text_code"] = type_code
 
-            subject = dict.pop("subject")
-            dict["subject_reference"] = subject["reference"]
+                collection = dict.get("collection")
+                if collection is not None:
+                    dict["collection_collectedDateTime"] = collection.get("collectedDateTime")
+                else:
+                    dict["collection_collectedDateTime"] = None
+            else:
+                dict["type_text"] = None
+                dict["collection_collectedDateTime"] = None
+
+            subject = dict.get("subject")
+            if subject is not None:
+                dict.pop("subject")
+                dict["subject_reference"] = subject.get("reference")
 
             dicts.append(dict)
     return pd.DataFrame(dicts)
@@ -75,26 +106,50 @@ def create_condition_data_frame(server):
             id = id[:-1]
             dict = server.request_json('http://localhost:8080/fhir/Condition/' + id)
 
-            meta = dict.pop("meta")
-            dict["meta_versionId"] = meta["versionId"]
-            dict["meta_lastUpdated"] = meta["lastUpdated"]
+            meta = dict.get("meta")
+            if meta is not None:
+                dict.pop("meta")
+                dict["meta_versionId"] = meta.get("versionId")
+                dict["meta_lastUpdated"] = meta.get("lastUpdated")
+            else:
+                dict["meta_versionId"] = None
+                dict["meta_lastUpdated"] = None
 
-            code = dict.pop("code")
-            coding = code.pop("coding").pop()
-            dict["code_coding_system"] = coding["system"]
-            dict["code_coding_code"] = coding["code"]
-            dict["code_coding_display"] = coding["display"]
-            dict["code_text"] = code["text"]
+            dict["code_coding_system"] = None
+            dict["code_coding_code"] = None
+            dict["code_coding_display"] = None
+            dict["code_text"] = None
+            code = dict.get("code")
+            if code is not None:
+                dict.pop("code")
+                coding = code.get("coding")
+                if coding is not None:
+                    coding = coding.pop()
+                    dict["code_coding_system"] = coding.get("system")
+                    dict["code_coding_code"] = coding.get("code")
+                    dict["code_coding_display"] = coding.get("display")
+                    dict["code_text"] = code.get("text")
 
-            subject = dict.pop("subject")
-            dict["subject_reference"] = subject["reference"]
+            subject = dict.get("subject")
+            if subject is not None:
+                dict.pop("subject")
+                dict["subject_reference"] = subject.get("reference")
+            else:
+                dict["subject_reference"] = None
 
-            clinicalStatus = dict.pop("clinicalStatus")
-            clinicalStatus_coding = clinicalStatus.pop("coding").pop()
-            dict["clinicalStatus_coding_system"] = clinicalStatus_coding.pop("system")
-            dict["clinicalStatus_coding_code"] = clinicalStatus_coding.pop("code")
-            dict["clinicalStatus_coding_display"] = clinicalStatus_coding.pop("display")
-
+            clinicalStatus = dict.get("clinicalStatus")
+            if clinicalStatus is not None:
+                dict.pop("clinicalStatus")
+                clinicalStatus_coding = clinicalStatus.get("coding")
+                if clinicalStatus_coding is not None:
+                    clinicalStatus_coding = clinicalStatus_coding[0]
+                    dict["clinicalStatus_coding_system"] = clinicalStatus_coding.get("system")
+                    dict["clinicalStatus_coding_code"] = clinicalStatus_coding.get("code")
+                    dict["clinicalStatus_coding_display"] = clinicalStatus_coding.get("display")
+                else:
+                    dict["clinicalStatus_coding_system"] = None
+                    dict["clinicalStatus_coding_code"] = None
+                    dict["clinicalStatus_coding_display"] = None
             dicts.append(dict)
     return pd.DataFrame(dicts)
 
@@ -135,7 +190,7 @@ def uniqueness(df, name):
         "Count": [count_of_rows - count_of_duplicates, count_of_duplicates]
     }
     dff = pd.DataFrame(result)
-    fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values')
+    fig = px.pie(dff, values='Count', names='Duplicates', title=('Duplicated values' + name))
 
     df.to_csv("reports/fhir/uniqueness" + name + ".csv", index=False)
     return fig
@@ -164,6 +219,7 @@ def conformance_patient(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Conformance patient")
     return fig
 
 
@@ -245,6 +301,7 @@ def conformance_condition(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Conformance condition")
     return fig
 
 
@@ -273,6 +330,7 @@ def conformance_specimen(df):
 
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Conformance specimen")
     return fig
 
 
@@ -302,6 +360,7 @@ def conformance_relational(df, server):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Conformance relational")
     return fig
 
 
@@ -371,6 +430,7 @@ def conformance_computational(pdf, sdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.scatter(dff, x='Records', y='Count')
+    fig.update_layout(title="Conformance computational")
     return fig
 
 
@@ -393,7 +453,7 @@ def age_at_primary_diagnosis(pdf, cdf):
     pdf_copy["patient_id"] = pdf_copy["id"]
     merged_df = pd.merge(pdf_copy, cdf_copy, how="left", on="patient_id")
     count_of_rows = merged_df.shape[0]
-    merged_df["age_at_diagnosis"] = merged_df["onsetDateTime"] - merged_df["birthDate"]
+    merged_df["age_at_diagnosis"] = pd.to_datetime(merged_df["onsetDateTime"]) - pd.to_datetime(merged_df["birthDate"])
     incorrect_df = merged_df.loc[merged_df['age_at_diagnosis'] < pd.Timedelta(days=15*365.25)]
     incorrect_count = incorrect_df.shape[0]
 
@@ -404,6 +464,7 @@ def age_at_primary_diagnosis(pdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 4: Suspiciously young patient")
     return fig
 
 
@@ -420,6 +481,7 @@ def diagnosis_in_future(cdf):
     now = datetime.now()
     cdf_copy = cdf.copy()
     count_of_rows = cdf_copy.shape[0]
+    cdf_copy["recordedDate"] = pd.to_datetime(cdf_copy["recordedDate"])
     cdf_copy["diagnosis_in_future"] = cdf_copy["recordedDate"] > now
     incorrect_count = cdf_copy["diagnosis_in_future"].sum()
 
@@ -430,8 +492,9 @@ def diagnosis_in_future(cdf):
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 8: Initial diagnosis date is in the future")
+    return fig
 
 
 # reports
@@ -451,10 +514,8 @@ def missing_collection_collectedDateTime(pdf, sdf):
     pdf_copy["patient_id"] = pdf_copy["id"]
     merged_ddf = pd.merge(pdf_copy, sdf_copy, how="left", on="patient_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
-    merged_ddf["missing_collection_collectedDateTime"] = (
-        merged_ddf["collection_collectedDateTime"].isnull())
+    merged_ddf["missing_collection_collectedDateTime"] = merged_ddf["collection_collectedDateTime"].isna()
     incorrect_count = merged_ddf["missing_collection_collectedDateTime"].sum()
 
     filter_ddf = merged_ddf[merged_ddf['missing_collection_collectedDateTime'] == True]
@@ -470,8 +531,9 @@ def missing_collection_collectedDateTime(pdf, sdf):
         "Count": [count_of_rows, count_of_rows - incorrect_count, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 1 + 2")
+    return fig
 
 
 # 3
@@ -490,7 +552,6 @@ def patients_without_specimen_type_text(pdf, sdf):
     pdf_copy["patient_id"] = pdf_copy["id"]
     merged_ddf = pd.merge(pdf_copy, sdf_copy, how="left", on="patient_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     merged_ddf["missing_specimen_type_text"] = merged_ddf["type_text"].isnull()
     incorrect_count_source = merged_ddf["missing_specimen_type_text"].sum()
@@ -504,8 +565,9 @@ def patients_without_specimen_type_text(pdf, sdf):
         "Count": [count_of_rows, incorrect_count_source]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 3: createPlotWithoutSampleID")
+    return fig
 
 
 # 6
@@ -525,7 +587,6 @@ def patients_without_condition_values(pdf, cdf):
     pdf_copy["patient_id"] = pdf_copy["id"]
     merged_ddf = pd.merge(pdf_copy, cdf_copy, how="left", on="patient_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     # code_coding_system
     merged_ddf["missing_code_coding_system"] = merged_ddf["code_coding_system"].isnull()
@@ -604,5 +665,6 @@ def patients_without_condition_values(pdf, cdf):
                   incorrect_count_status_display]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 6: createPlotsWithoutHistoValues")
+    return fig

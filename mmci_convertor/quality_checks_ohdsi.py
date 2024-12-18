@@ -57,6 +57,7 @@ def completeness(df):
     fig.update_layout(xaxis_title='count of missing values', yaxis_title='attribute', title="Missing values",
                       showlegend=False)
     df.to_csv("reports/omop/completeness" + name + ".csv", index=False)
+    fig.update_layout(title="Completeness" + name)
     return fig
 
 
@@ -85,7 +86,7 @@ def uniqueness(df):
     df.to_csv("reports/omop/uniqueness" + name + ".csv", index=False)
 
     dff = pd.DataFrame(result)
-    fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values')
+    fig = px.pie(dff, values='Count', names='Duplicates', title='Duplicated values' + name)
     return fig
 
 
@@ -121,6 +122,7 @@ def observation_end_precedes_condition_start(cdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 1: Vital check date precedes initial diagnosis date")
     return fig
 
 
@@ -153,6 +155,7 @@ def observation_end_equals_condition_start(cdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 2: Vital check date is equal to initial diagnosis date")
     return fig
 
 
@@ -171,7 +174,7 @@ def too_young_person(pdf, cdf):
     count_of_rows = merged_df.shape[0]
     merged_df.dropna()
 
-    merged_df['condition_start_date'] = merged_df["condition_start_date"].apply(lambda x: int(x.strftime('%Y%m%d'))//1000)
+    merged_df['condition_start_date'] = merged_df["condition_start_date"].apply(lambda x: int(x.strftime('%Y%m%d'))//10000)
     merged_df["age_at_diagnosis"] = merged_df["condition_start_date"] - merged_df["year_of_birth"]
     incorrect_df = merged_df.loc[merged_df['age_at_diagnosis'] < 15]
     incorrect_count = incorrect_df.shape[0]
@@ -184,6 +187,7 @@ def too_young_person(pdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 4: Suspiciously young patient")
     return fig
 
 
@@ -214,6 +218,7 @@ def observation_end_in_the_future(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 7: Vital status timestamp is in the future")
     return fig
 
 
@@ -243,6 +248,7 @@ def condition_start_in_the_future(cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 8: Initial diagnosis date is in the future")
     return fig
 
 
@@ -259,7 +265,7 @@ def missing_drug_exposure_info(ddf):
     ddf_copy = ddf.copy()
     count_of_rows = ddf_copy.shape[0]
 
-    ddf_copy["missing_drug_exposure_info"] = ((ddf_copy["drug_concept_id"] == 0) & (ddf_copy["drug_source_value"].isnull()))
+    ddf_copy["missing_drug_exposure_info"] = ((ddf_copy["drug_concept_id"] == 0) & (ddf_copy["drug_source_value"].isna()))
     incorrect_count = ddf_copy["missing_drug_exposure_info"].sum()
 
     filter_ddf_copy = ddf_copy[ddf_copy['missing_drug_exposure_info'] == True]
@@ -271,6 +277,7 @@ def missing_drug_exposure_info(ddf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 9: Pharmacotherapy scheme description is missing while pharmacotherapy scheme is Other")
     return fig
 
 
@@ -303,6 +310,7 @@ def sus_pharma(ddf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 10 + 11")
     return fig
 
 
@@ -330,6 +338,7 @@ def sus_pharma_other(ddf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 12: Suspicious characters or words in description of pharmacotherapy")
     return fig
 
 
@@ -359,6 +368,7 @@ def drug_end_before_start(ddf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 16: Negative event (treatment/response) duration: end time is before start time")
     return fig
 
 
@@ -391,6 +401,7 @@ def therapy_start_before_diagnosis(cdf, ddf, prdf):
     }
     dff = pd.DataFrame(result)
     fig_dff = px.bar(dff, x='Records', y='Count')
+    fig_dff.update_layout(title="Warning # 21: Start of therapy is before diagnosis - drug exposures")
 
     # prdf
     merged_prdf = pd.merge(cdf, prdf, how="left", on="person_id")
@@ -410,6 +421,7 @@ def therapy_start_before_diagnosis(cdf, ddf, prdf):
     }
     prdf = pd.DataFrame(result)
     fig_prdf = px.bar(prdf, x='Records', y='Count')
+    fig_prdf.update_layout(title="Warning # 21: Start of therapy is before diagnosis - procedure occurrence")
     return fig_dff, fig_prdf
 
 
@@ -440,6 +452,7 @@ def treatment_start_in_the_future(ddf, prdf):
     }
     dff_copy = pd.DataFrame(result)
     fig_dff = px.bar(dff_copy, x='Records', y='Count')
+    fig_dff.update_layout(title="Warning # 22: Start of treatment is in the future - drug exposures")
 
     # prdf
     prdf_copy = prdf.copy()
@@ -457,6 +470,7 @@ def treatment_start_in_the_future(ddf, prdf):
     }
     prdf_copy = pd.DataFrame(result)
     fig_prdf = px.bar(prdf_copy, x='Records', y='Count')
+    fig_prdf.update_layout(title="Warning # 22: Start of treatment is in the future - procedure occurrence")
     return fig_dff, fig_prdf
 
 
@@ -485,8 +499,9 @@ def drug_exposure_end_in_the_future(ddf):
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 23: End of treatment is in the future")
+    return fig
 
 
 # 24
@@ -519,8 +534,9 @@ def sus_early_pharma(cdf, ddf):
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 24: Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)")
+    return fig
 
 
 # 25
@@ -551,8 +567,9 @@ def sus_short_pharma(cdf, ddf):
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 25: Suspiciously short pharma therapy - less than 1 week (may be false positive)")
+    return fig
 
 
 # reports
@@ -568,7 +585,6 @@ def missing_specimen_date(pdf, sdf):
     """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     merged_ddf["missing_specimen_date"] = merged_ddf["specimen_date"].isnull()
     incorrect_count = merged_ddf["missing_specimen_date"].sum()
@@ -585,8 +601,9 @@ def missing_specimen_date(pdf, sdf):
         "Count": [count_of_rows, incorrect_count, count_of_rows - incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 1 + 2")
+    return fig
 
 
 # 3
@@ -601,7 +618,6 @@ def patients_without_specimen_source_id(pdf, sdf):
     """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     merged_ddf["missing_specimen_source_id"] = merged_ddf["specimen_source_id"].isnull()
     incorrect_count_source = merged_ddf["missing_specimen_source_id"].sum()
@@ -615,8 +631,9 @@ def patients_without_specimen_source_id(pdf, sdf):
         "Count": [count_of_rows, incorrect_count_source]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 3: createPlotWithoutSampleID")
+    return fig
 
 
 # 4 cannot be done, preservation mode is missing
@@ -634,7 +651,6 @@ def patients_without_specimen_source_value_concept_id(pdf, sdf):
     """
     merged_ddf = pd.merge(pdf, sdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     merged_ddf["missing_specimen_source_value"] = merged_ddf["specimen_source_value"].isnull()
     incorrect_count = merged_ddf["missing_specimen_source_value"].sum()
@@ -654,8 +670,9 @@ def patients_without_specimen_source_value_concept_id(pdf, sdf):
         "Count": [count_of_rows, incorrect_count, incorrect_count_concept]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 5: createPlotWithoutMaterialType")
+    return fig
 
 
 # 6
@@ -670,7 +687,6 @@ def patients_without_condition_values(pdf, cdf):
     """
     merged_ddf = pd.merge(pdf, cdf, how="left", on="person_id")
     count_of_rows = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     # condition_source_value
     merged_ddf["missing_condition_source_value"] = merged_ddf["condition_source_value"].isnull()
@@ -701,8 +717,9 @@ def patients_without_condition_values(pdf, cdf):
                   incorrect_count_date, incorrect_count_concept]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 6: createPlotsWithoutHistoValues")
+    return fig
 
 
 # 7
@@ -723,7 +740,6 @@ def patients_without_surgery_values(pdf, prdf):
 
     merged_ddf = pd.merge(pdf, surgeries, how="right", on="person_id")
     patients_with_surgery_count = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     # procedure_source_value
     merged_ddf["missing_procedure_source_value"] = merged_ddf["procedure_source_value"].isnull()
@@ -758,8 +774,9 @@ def patients_without_surgery_values(pdf, prdf):
                   ]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 7: createPlotsWithoutSurgeryValues")
+    return fig
 
 
 # 8
@@ -799,7 +816,6 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
     liver_imaging = prdf[prdf['procedure_source_value'] == "liver imaging"]
     liver_imaging_df = pd.merge(pdf, liver_imaging, how="left", on="person_id")
     patients_without_liver_imaging = liver_imaging_df[~liver_imaging_df['procedure_source_value'].isnull()]
-    liver_imaging_df = liver_imaging_df.dropna()
     patients_with_liver_imaging_count = liver_imaging_df.shape[0]
     patients_without_liver_imaging.to_csv('reports/omop/patients_without_liver_imaging.csv', index=False)
 
@@ -807,7 +823,6 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
     lung_imaging = prdf[prdf['procedure_source_value'] == "lung_imaging"]
     lung_imaging_df = pd.merge(pdf, lung_imaging, how="left", on="person_id")
     patients_without_lung_imaging = lung_imaging_df[~lung_imaging_df['procedure_source_value'].isnull()]
-    lung_imaging_df = lung_imaging_df.dropna()
     patients_with_lung_imaging_count = lung_imaging_df.shape[0]
     patients_without_lung_imaging.to_csv('reports/omop/patients_without_lung_imaging.csv', index=False)
 
@@ -815,7 +830,6 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
     colonoscopy = prdf[prdf['procedure_source_value'] == "colonoscopy"]
     colonoscopy_df = pd.merge(pdf, colonoscopy, how="left", on="person_id")
     patients_without_colonoscopy = colonoscopy_df[~colonoscopy_df['procedure_source_value'].isnull()]
-    colonoscopy_df = colonoscopy_df.dropna()
     patients_with_colonoscopy_count = colonoscopy_df.shape[0]
     patients_without_colonoscopy.to_csv('reports/omop/patients_without_colonoscopy.csv', index=False)
 
@@ -823,7 +837,6 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
     mri = prdf[prdf['procedure_source_value'] == "MRI"]
     mri_df = pd.merge(pdf, mri, how="left", on="person_id")
     patients_without_mri = mri_df[~mri_df['procedure_source_value'].isnull()]
-    mri_df = mri_df.dropna()
     patients_with_mri_count = mri_df.shape[0]
     patients_without_mri.to_csv('reports/omop/patients_without_mri.csv', index=False)
 
@@ -831,7 +844,6 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
     ct = prdf[prdf['procedure_source_value'] == "CT"]
     ct_df = pd.merge(pdf, ct, how="left", on="person_id")
     patients_without_ct = ct_df[~ct_df['procedure_source_value'].isnull()]
-    ct_df = ct_df.dropna()
     patients_with_ct_count = ct_df.shape[0]
     patients_without_ct.to_csv('reports/omop/patients_without_ct.csv', index=False)
 
@@ -858,8 +870,9 @@ def missing_patient_and_diagnostic_values(pdf, prdf):
                   patients_with_ct_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 8: createPlotsWithoutPatientValues")
+    return fig
 
 
 # 9
@@ -873,11 +886,10 @@ def missing_targeted_therapy_values(pdf, prdf):
         Graphs of result.
     """
     patients = pdf.shape[0]
-    surgeries = prdf[prdf['procedure_source_value'].isin(["Targeted therapy"])]
+    surgeries = prdf[prdf['procedure_source_value'] == "Targeted therapy"]
 
     merged_ddf = pd.merge(pdf, surgeries, how="right", on="person_id")
     patients_with_targeted_therapy_count = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     # procedure_source_value
     merged_ddf["missing_procedure_source_value"] = merged_ddf["procedure_source_value"].isnull()
@@ -902,7 +914,7 @@ def missing_targeted_therapy_values(pdf, prdf):
 
     result = {
         "Records": ["Number of patients",
-                    "patients_with_surgery_count",
+                    "patients_with_targeted_therapy_count",
                     "patients_without_procedure_source_value",
                     "patients_without_procedure_concept_id",
                     "patients_without_procedure_date"],
@@ -914,8 +926,9 @@ def missing_targeted_therapy_values(pdf, prdf):
                   ]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 9: createPlotsWithoutTargetedTherapy")
+    return fig
 
 
 # 10
@@ -932,38 +945,38 @@ def missing_pharmacotherapy_value(pdf, ddf):
     merged_ddf = pd.merge(pdf, ddf, how="left", on="person_id")
 
     # drug_concept_id
-    missing_drug_concept_id = merged_ddf["drug_concept_id"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_concept_id'].isnull() == True]
+    missing_drug_concept_id = merged_ddf["drug_concept_id"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_concept_id'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_concept_id.csv', index=False)
 
     # drug_exposure_start_date
-    missing_drug_exposure_start_date = merged_ddf["drug_exposure_start_date"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_exposure_start_date'].isnull() == True]
+    missing_drug_exposure_start_date = merged_ddf["drug_exposure_start_date"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_exposure_start_date'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_exposure_start_date.csv', index=False)
 
     # drug_exposure_start_datetime
-    missing_drug_exposure_start_datetime = merged_ddf["drug_exposure_start_datetime"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_exposure_start_datetime'].isnull() == True]
+    missing_drug_exposure_start_datetime = merged_ddf["drug_exposure_start_datetime"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_exposure_start_datetime'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_exposure_start_datetime.csv', index=False)
 
     # drug_exposure_end_date
-    missing_drug_exposure_end_date = merged_ddf["drug_exposure_end_date"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_exposure_end_date'].isnull() == True]
+    missing_drug_exposure_end_date = merged_ddf["drug_exposure_end_date"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_exposure_end_date'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_exposure_end_date.csv', index=False)
 
     # drug_exposure_end_datetime
-    missing_drug_exposure_end_datetime = merged_ddf["drug_exposure_end_datetime"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_exposure_end_datetime'].isnull() == True]
+    missing_drug_exposure_end_datetime = merged_ddf["drug_exposure_end_datetime"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_exposure_end_datetime'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_exposure_end_datetime.csv', index=False)
 
     # drug_type_concept_id
-    missing_drug_type_concept_id = merged_ddf["drug_type_concept_id"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_type_concept_id'].isnull() == True]
+    missing_drug_type_concept_id = merged_ddf["drug_type_concept_id"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_type_concept_id'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_type_concept_id.csv', index=False)
 
     # drug_source_value
-    missing_drug_source_value = merged_ddf["drug_source_value"].isnull().sum()
-    filter_ddf = merged_ddf[merged_ddf['drug_source_value'].isnull() == True]
+    missing_drug_source_value = merged_ddf["drug_source_value"].isna().sum()
+    filter_ddf = merged_ddf[merged_ddf['drug_source_value'].isna() == True]
     filter_ddf.to_csv('reports/omop/patients_without_drug_source_value.csv', index=False)
 
     result = {
@@ -987,8 +1000,9 @@ def missing_pharmacotherapy_value(pdf, ddf):
                   ]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 10: createPlotsWithoutPharmacotherapy")
+    return fig
 
 
 # 11
@@ -1006,7 +1020,6 @@ def missing_radiation_therapy_values(pdf, prdf):
 
     merged_ddf = pd.merge(pdf, surgeries, how="right", on="person_id")
     patients_with_radiation_therapy_count = merged_ddf.shape[0]
-    merged_ddf = merged_ddf.dropna()
 
     # procedure_source_value
     merged_ddf["missing_procedure_source_value"] = merged_ddf["procedure_source_value"].isnull()
@@ -1043,8 +1056,9 @@ def missing_radiation_therapy_values(pdf, prdf):
                   ]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 11: createPlotsWithoutRadiationTherapy")
+    return fig
 
 # 12 cannot be done, we do not have Responce to therapy
 
@@ -1094,8 +1108,9 @@ def counts_of_records(pdf, odf, cdf, sdf, ddf, prdf):
                   ]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 35")
+    return fig
 
 # 31 - 34 values have not been mapped
 
@@ -1129,8 +1144,9 @@ def get_patients_without_surgery(pdf, prdf):
         "Count": [patients, patients_without_surgery]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 41: getPatientsWithoutSurgery")
+    return fig
 
 
 # if __name__ == '__main__':

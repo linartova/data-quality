@@ -33,31 +33,49 @@ def create_patient_data_frame(server):
             result["subject"] = id
 
             # gender
-            gender = data.pop("gender")
+            gender = data.get("gender")
             result["gender"] = gender
 
             # birthDate
-            birth_date = data.pop("birthDate")
+            birth_date = data.get("birthDate")
             result["birthDate"] = birth_date
 
             # deceasedBoolean
-            deceased_boolean = data.pop("deceasedBoolean")
+            deceased_boolean = data.get("deceasedBoolean")
             result["deceasedBoolean"] = deceased_boolean
 
             # deceasedDateTime
-            deceased_date_time = None if deceased_boolean is False else data.pop("deceasedDateTime")
+            deceased_date_time = None if deceased_boolean is False else data.get("deceasedDateTime")
             result["deceasedDateTime"] = deceased_date_time
 
             # identifier
-            identifier_wrapper = data.pop("identifier").pop()
-            identifier = identifier_wrapper.pop("value")
-            result["identifier"] = identifier
+            result["identifier"] = None
+            identifier_wrapper = data.get("identifier")
+            if identifier_wrapper is not None:
+                identifier_wrapper = identifier_wrapper.pop()
+                if identifier_wrapper is not None:
+                    identifier = identifier_wrapper.get("value")
+                    result["identifier"] = identifier
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
     all_times['birthDate'] = pd.to_datetime(all_times['birthDate'])
     all_times['deceasedDateTime'] = pd.to_datetime(all_times['deceasedDateTime'])
     return all_times
+
+
+def normalize_tnm(server):
+    names = {}
+    all_tnm = pd.DataFrame(names)
+    all_jsons = []
+    with open('tnm_ids.txt', 'r') as ids:
+        for id in ids:
+            result = {}
+            id = id[:-1]
+            data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
+            all_jsons.append(data)
+
+    df = pd.json_normalize(all_jsons)
 
 
 def create_tnm_dataframe(server):
@@ -96,76 +114,125 @@ def create_tnm_dataframe(server):
             data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
 
             # method
-            method = data.pop("method")
-            method_coding = method.pop("coding").pop()
-            result["method_coding_code"] = method_coding.pop("code")
-            result["method_coding_display"] = method_coding.pop("display")
+            result["method_coding_code"] = None
+            result["method_coding_display"] = None
+            method = data.get("method")
+            if method is not None:
+                method_coding = method.get("coding")
+                if method_coding is not None:
+                    method_coding = method_coding.pop()
+                    result["method_coding_code"] = method_coding.get("code")
+                    result["method_coding_display"] = method_coding.get("display")
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                if reference is not None:
+                    result["subject"] = reference
 
             # stage
-            value = data.pop("valueCodeableConcept")
-            coding = value.pop("coding").pop()
-            if "code" in coding.keys():
-                stage_code = coding.pop("code")
-            else:
-                stage_code = None
-            if "display" in coding.keys():
-                stage_display = coding.pop("display")
-            else:
-                stage_display = None
-            result["stage_code"] = stage_code
-            result["stage_display"] = stage_display
+            result["stage_code"] = None
+            result["stage_display"] = None
+            value = data.get("valueCodeableConcept")
+            if value is not None:
+                coding = value.get("coding")
+                if coding is not None:
+                    coding = coding.pop()
+                    if "code" in coding.keys():
+                        stage_code = coding.get("code")
+                    else:
+                        stage_code = None
+                    if "display" in coding.keys():
+                        stage_display = coding.get("display")
+                    else:
+                        stage_display = None
+                    result["stage_code"] = stage_code
+                    result["stage_display"] = stage_display
 
-            component = data.pop("component")
+            component = data.get("component")
 
             # grade
-            grade = component.pop()
-            grade_value = grade.pop("valueCodeableConcept")
-            grade_coding = grade_value.pop("coding").pop()
-            grade_coding_code = grade_coding.pop("code")
-            grade_coding_display = grade_coding.pop("display")
-            result["grade_coding_code"] = grade_coding_code
-            result["grade_coding_display"] = grade_coding_display
+            result["grade_coding_code"] = None
+            result["grade_coding_display"] = None
+            if component is not None:
+                grade = component.pop()
+                if grade is not None:
+                    grade_value = grade.get("valueCodeableConcept")
+                    if grade_value is not None:
+                        grade_coding = grade_value.get("coding")
+                        if grade_coding is not None:
+                            grade_coding = grade_coding.pop()
+                            if grade_coding is not None:
+                                grade_coding_code = grade_coding.get("code")
+                                grade_coding_display = grade_coding.get("display")
+                                result["grade_coding_code"] = grade_coding_code
+                                result["grade_coding_display"] = grade_coding_display
 
             # morphology
-            morpho = component.pop()
-            morpho_value = morpho.pop("valueCodeableConcept")
-            morpho_coding = morpho_value.pop("coding").pop()
-            morpho_coding_code = morpho_coding.pop("code")
-            morpho_coding_display = morpho_coding.pop("display")
-            result["morpho_coding_code"] = morpho_coding_code
-            result["morpho_coding_display"] = morpho_coding_display
+            result["morpho_coding_code"] = None
+            result["morpho_coding_display"] = None
+            if component is not None:
+                morpho = component.pop()
+                if morpho is not None:
+                    morpho_value = morpho.get("valueCodeableConcept")
+                    if morpho_value is not None:
+                        morpho_coding = morpho_value.get("coding")
+                        if morpho_coding is not None:
+                            morpho_coding = morpho_coding.pop()
+                            morpho_coding_code = morpho_coding.get("code")
+                            morpho_coding_display = morpho_coding.get("display")
+                            result["morpho_coding_code"] = morpho_coding_code
+                            result["morpho_coding_display"] = morpho_coding_display
 
             # M
-            m = component.pop()
-            m_value = m.pop("valueCodeableConcept")
-            m_coding = m_value.pop("coding").pop()
-            m_coding_code = m_coding.pop("code")
-            m_coding_display = m_coding.pop("display")
-            result["m_coding_code"] = m_coding_code
-            result["m_coding_display"] = m_coding_display
+            result["m_coding_code"] = None
+            result["m_coding_display"] = None
+            if component is not None:
+                m = component.pop()
+                if m is not None:
+                    m_value = m.get("valueCodeableConcept")
+                    if m_value is not None:
+                        m_coding = m_value.get("coding")
+                        if m_coding is not None:
+                            m_coding = m_coding.pop()
+                            m_coding_code = m_coding.get("code")
+                            m_coding_display = m_coding.get("display")
+                            result["m_coding_code"] = m_coding_code
+                            result["m_coding_display"] = m_coding_display
 
             # N
-            n = component.pop()
-            n_value = n.pop("valueCodeableConcept")
-            n_coding = n_value.pop("coding").pop()
-            n_coding_code = n_coding.pop("code")
-            n_coding_display = n_coding.pop("display")
-            result["n_coding_code"] = n_coding_code
-            result["n_coding_display"] = n_coding_display
+            result["n_coding_code"] = None
+            result["n_coding_display"] = None
+            if component is not None:
+                n = component.pop()
+                if n is not None:
+                    n_value = n.get("valueCodeableConcept")
+                    if n_value is not None:
+                        n_coding = n_value.get("coding")
+                        if n_coding is not None:
+                            n_coding = n_coding.pop()
+                            n_coding_code = n_coding.get("code")
+                            n_coding_display = n_coding.get("display")
+                            result["n_coding_code"] = n_coding_code
+                            result["n_coding_display"] = n_coding_display
 
             # T
-            t = component.pop()
-            t_value = t.pop("valueCodeableConcept")
-            t_coding = t_value.pop("coding").pop()
-            t_coding_code = t_coding.pop("code")
-            t_coding_display = t_coding.pop("display")
-            result["t_coding_code"] = t_coding_code
-            result["t_coding_display"] = t_coding_display
+            result["t_coding_code"] = None
+            result["t_coding_display"] = None
+            if component is not None:
+                t = component.pop()
+                if t is not None:
+                    t_value = t.get("valueCodeableConcept")
+                    if t_value is not None:
+                        t_coding = t_value.get("coding")
+                        if t_coding is not None:
+                            t_coding = t_coding.pop()
+                            t_coding_code = t_coding.get("code")
+                            t_coding_display = t_coding.get("display")
+                            result["t_coding_code"] = t_coding_code
+                            result["t_coding_display"] = t_coding_display
 
             next_df = pd.DataFrame([result])
             all_tnm = pd.concat([all_tnm, next_df])
@@ -194,14 +261,18 @@ def create_recurrence_df(server):
             data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
             # recurrence
-            value_quantity = data.pop("valueQuantity")
-            value = value_quantity.pop("value")
-            result["recurrence"] = value
+            result["recurrence"] = None
+            value_quantity = data.get("valueQuantity")
+            if value_quantity is not None:
+                value = value_quantity.get("value")
+                result["recurrence"] = value
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -232,18 +303,22 @@ def create_time_observation_df(server):
             data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
 
             # last_update
-            last_update = data.pop("effectiveDateTime")
+            last_update = data.get("effectiveDateTime")
             result["last_update"] = last_update
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
             # overall_survival
-            value_quantity = data.pop("valueQuantity")
-            value = value_quantity.pop("value")
-            result["overall_survival"] = value
+            result["overall_survival"] = None
+            value_quantity = data.get("valueQuantity")
+            if value_quantity is not None:
+                value = value_quantity.get("value")
+                result["overall_survival"] = value
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -275,18 +350,21 @@ def create_radiation_df(server):
             data = server.request_json('http://localhost:8080/fhir/Procedure/' + id)
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
-            # start
-            performed_period = data.pop("performedPeriod")
-            start = performed_period.pop("start")
-            result["start"] = start
-
-            # end
-            end = performed_period.pop("end")
-            result["end"] = end
+            # start + end
+            result["start"] = None
+            result["end"] = None
+            performed_period = data.get("performedPeriod")
+            if performed_period is not None:
+                start = performed_period.get("start")
+                result["start"] = start
+                end = performed_period.get("end")
+                result["end"] = end
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -320,23 +398,29 @@ def create_response_df(server):
             data = server.request_json('http://localhost:8080/fhir/Observation/' + id)
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
             # date
-            date = data.pop("effectiveDateTime")
+            date = data.get("effectiveDateTime")
             result["date"] = date
 
-            # code
-            value = data.pop("valueCodeableConcept")
-            coding = value.pop("coding").pop()
-            code = coding.pop("code")
-            result["code"] = code
-
-            # display
-            display = coding.pop("display")
-            result["display"] = display
+            # code + display
+            result["code"] = None
+            result["display"] = None
+            value = data.get("valueCodeableConcept")
+            if value is not None:
+                coding = value.get("coding")
+                if coding is not None:
+                    coding = coding.pop()
+                    if coding is not None:
+                        code = coding.get("code")
+                        result["code"] = code
+                        display = coding.get("display")
+                        result["display"] = display
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -374,52 +458,74 @@ def create_surgery_df(server):
             data = server.request_json('http://localhost:8080/fhir/Procedure/' + id)
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
-            # surgery code
-            surgery_code = data.pop("code")
-            coding = surgery_code.pop("coding").pop()
-            code = coding.pop("code")
-            result["surgery_code"] = code
-
-            # surgery display
-            display = coding.pop("display")
-            result["surgery_display"] = display
+            # surgery code + display
+            result["surgery_code"] = None
+            result["surgery_display"] = None
+            surgery_code = data.get("code")
+            if surgery_code is not None:
+                coding = surgery_code.get("coding")
+                if coding is not None:
+                    coding = coding.pop()
+                    code = coding.get("code")
+                    result["surgery_code"] = code
+                    display = coding.get("display")
+                    result["surgery_display"] = display
 
             # start
-            performed_period = data.pop("performedPeriod")
-            start = performed_period.pop("start")
-            result["start"] = start
+            result["start"] = None
+            performed_period = data.get("performedPeriod")
+            if performed_period is not None:
+                start = performed_period.get("start")
+                result["start"] = start
 
             # bodySite code
-            body_site = data.pop("bodySite").pop()
-            body_site_coding = body_site.pop("coding").pop()
-            body_site_code = body_site_coding.pop("code")
-            result["body_site_code"] = body_site_code
+            result["body_site_code"] = None
+            body_site = data.get("bodySite")
+            if body_site is not None:
+                body_site = body_site.pop()
+                if body_site is not None:
+                    body_site_coding = body_site.get("coding")
+                    if body_site_coding is not None:
+                        body_site_coding = body_site_coding.pop()
+                        if body_site_coding is not None:
+                            body_site_code = body_site_coding.get("code")
+                            result["body_site_code"] = body_site_code
 
             # bodySite display
             if "display" in body_site_coding:
-                body_site_display = body_site_coding.pop("display")
+                body_site_display = body_site_coding.get("display")
             else:
                 body_site_display = None
             result["body_site_display"] = body_site_display
 
-            # outcome_code
-            outcome = data.pop("outcome")
-            outcome_coding = outcome.pop("coding").pop()
-            outcome_code = outcome_coding.pop("code")
-            result["outcome_code"] = outcome_code
-
-            # outcome display
-            outcome_display = outcome_coding.pop("display")
-            result["outcome_display"] = outcome_display
+            # outcome code + display
+            result["outcome_code"] = None
+            result["outcome_display"] = None
+            outcome = data.get("outcome")
+            if outcome is not None:
+                outcome_coding = outcome.get("coding")
+                if outcome_coding is not None:
+                    outcome_coding = outcome_coding.pop()
+                    if outcome_coding is not None:
+                        outcome_code = outcome_coding.get("code")
+                        result["outcome_code"] = outcome_code
+                        outcome_display = outcome_coding.get("display")
+                        result["outcome_display"] = outcome_display
 
             # note
-            note = data.pop("note").pop()
-            note_text = note.pop("text")
-            result["note_text"] = note_text
+            result["note_text"] = None
+            note = data.get("note")
+            if note is not None:
+                note = note.pop()
+                if note is not None:
+                    note_text = note.get("text")
+                    result["note_text"] = note_text
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -449,29 +555,41 @@ def create_specimen_data_frame(server):
             data = server.request_json('http://localhost:8080/fhir/Specimen/' + id)
 
             # collection collected
-            collection = data.pop("collection")
-            collected_date_time = collection.pop("collectedDateTime")
-            result["collected_date_time"] = collected_date_time
+            result["collected_date_time"] = None
+            collection = data.get("collection")
+            if collection is not None:
+                collected_date_time = collection.get("collectedDateTime")
+                result["collected_date_time"] = collected_date_time
 
             # identifier
-            identifier_wrapper = data.pop("identifier").pop()
-            identifier = identifier_wrapper.pop("value")
-            result["identifier"] = identifier
+            result["identifier"] = None
+            identifier_wrapper = data.get("identifier")
+            if identifier_wrapper is not None:
+                identifier_wrapper = identifier_wrapper.pop()
+                if identifier_wrapper is not None:
+                    identifier = identifier_wrapper.get("value")
+                    result["identifier"] = identifier
 
-            # type code
-            type = data.pop("type")
-            type_coding = type.pop("coding").pop()
-            type_code = type_coding.pop("code")
-            result["type_code"] = type_code
-
-            # type display
-            type_display = type_coding.pop("display")
-            result["type_display"] = type_display
+            # type code + display
+            result["type_code"] = None
+            result["type_display"] = None
+            type = data.get("type")
+            if type is not None:
+                type_coding = type.get("coding")
+                if type_coding is not None:
+                    type_coding = type_coding.pop()
+                    if type_coding is not None:
+                        type_code = type_coding.get("code")
+                        result["type_code"] = type_code
+                        type_display = type_coding.get("display")
+                        result["type_display"] = type_display
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -501,27 +619,31 @@ def create_condition_data_frame(server):
             data = server.request_json('http://localhost:8080/fhir/Condition/' + id)
 
             # recordedDate
-            recorded_date = data.pop("recordedDate")
+            recorded_date = data.get("recordedDate")
             result["recorded_date"] = recorded_date
 
             # onsetDateTime
-            onset_date_time = data.pop("onsetDateTime")
+            onset_date_time = data.get("onsetDateTime")
             result["onset_date_time"] = onset_date_time
 
-            # code
-            code = data.pop("code")
-            code_coding = code.pop("coding").pop()
-            code_code = code_coding.pop("code")
-            result["code_code"] = code_code
-
-            # display
-            code_display = code_coding.pop("display")
-            result["code_display"] = code_display
+            # code + display
+            code = data.get("code")
+            if code is not None:
+                code_coding = code.get("coding")
+                if code_coding is not None:
+                    code_coding = code_coding.pop()
+                    if code_coding is not None:
+                        code_code = code_coding.get("code")
+                        result["code_code"] = code_code
+                        code_display = code_coding.get("display")
+                        result["code_display"] = code_display
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -554,18 +676,21 @@ def create_targeted_therapy_dataframe(server):
             data = server.request_json('http://localhost:8080/fhir/Procedure/' + id)
 
             # subject
-            subject = data.pop("subject")
-            reference = subject.pop("reference")
-            result["subject"] = reference
+            result["subject"] = None
+            subject = data.get("subject")
+            if subject is not None:
+                reference = subject.get("reference")
+                result["subject"] = reference
 
-            # start
-            performed_period = data.pop("performedPeriod")
-            start = performed_period.pop("start")
-            result["start"] = start
-
-            # end
-            end = performed_period.pop("end")
-            result["end"] = end
+            # start + end
+            result["start"] = None
+            result["end"] = None
+            performed_period = data.get("performedPeriod")
+            if performed_period is not None:
+                start = performed_period.get("start")
+                result["start"] = start
+                end = performed_period.get("end")
+                result["end"] = end
 
             next_df = pd.DataFrame([result])
             all_times = pd.concat([all_times, next_df])
@@ -623,6 +748,7 @@ def last_update_before_initial_diagnosis(cdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 1: Vital check date precedes initial diagnosis date")
     return fig
 
 
@@ -657,6 +783,7 @@ def vital_check_date_is_equal_to_initial_diagnosis_date(cdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 2: Vital check date is equal to initial diagnosis date")
     return fig
 
 def calculate_days(row):
@@ -706,6 +833,7 @@ def suspicious_survival_information(cdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 3: Suspicious survival information")
     return fig
 
 # 4
@@ -735,6 +863,7 @@ def age_at_primary_diagnosis(pdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 4: Suspiciously young patient")
     return fig
 
 
@@ -779,6 +908,7 @@ def suspiciously_long_survival(pdf, odf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 5: Suspiciously long survival")
     return fig
 
 
@@ -816,6 +946,7 @@ def vital_status_timestamp_missing(pdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 6: Vital status timestamp missing")
     return fig
 
 
@@ -849,6 +980,7 @@ def vital_status_timestamp_is_in_the_future(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 7: Vital status timestamp is in the future")
     return fig
 
 
@@ -876,8 +1008,9 @@ def diagnosis_in_future(cdf):
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 8: Initial diagnosis date is in the future")
+    return fig
 
 
 def match_surgery_location_and_histo_location(row):
@@ -892,18 +1025,20 @@ def match_surgery_location_and_histo_location(row):
     """
     surgery_loc = row["code_code"]
     histology_loc = row["body_site_code"]
-    codes = {"C18.0": 32713005,
+    if histology_loc is None:
+        return False
+    codes = {"C18.0": "32713005",
              "C18.1": None,
-             "C18.2": 9040008,
-             "C18.3": 48338005,
-             "C18.4": 485005,
-             "C18.5": 72592005,
-             "C18.6": 32622004,
-             "C18.7": 60184004,
+             "C18.2": "9040008",
+             "C18.3": "48338005",
+             "C18.4": "485005",
+             "C18.5": "72592005",
+             "C18.6": "32622004",
+             "C18.7": "60184004",
              "C18.8": None,
              "C18.9": None,
-             "C19": 49832006,
-             "C20": 34402009}
+             "C19": "49832006",
+             "C20": "34402009"}
     if surgery_loc in codes.keys():
         return histology_loc == codes.get(surgery_loc)
     return False
@@ -931,15 +1066,16 @@ def surgery_and_histological_location_do_not_match_only_one(cdf, sdf):
     result['count'] = result['subject'].map(result['subject'].value_counts())
     result = result[result['count'] == 1]
 
-    result_result = []
+    result_result = [None for _ in range(all)]
+    result["result"] = pd.Series(result_result).copy()
+    result.reset_index(drop=True, inplace=True)
     for index, row in result.iterrows():
-        result_result.append(match_surgery_location_and_histo_location(row))
-    result["result"] = pd.Series(result_result)
+        result.loc[index, "result"] = match_surgery_location_and_histo_location(row)
 
-    failures = result.result.sum()
+    failures = all - result.result.sum()
 
     # filter all failures
-    failed_rows = result[result["result"] == True]
+    failed_rows = result[result["result"] == False]
     failed_rows.to_csv('reports/fhir/extra/surgery_and_histological_location_do_not_match_only_one.csv', index=False)
 
     result = {
@@ -948,6 +1084,7 @@ def surgery_and_histological_location_do_not_match_only_one(cdf, sdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 13: Surgery and histological location do not match")
     return fig
 
 
@@ -967,20 +1104,22 @@ def surgery_and_histological_location_do_not_match_multiple(cdf, sdf):
     """
     cdf_copy = cdf.copy()
     sdf_copy = sdf.copy()
+    all = cdf_copy.shape[0]
     result = pd.merge(cdf_copy, sdf_copy, how="right", on=["subject"])
-    all = result.shape[0]
     result['count'] = result['subject'].map(result['subject'].value_counts())
     result = result[result['count'] > 1]
 
-    result_result = []
+    surgery_count = result.shape[0]
+    result_result = [None for _ in range(surgery_count)]
+    result["result"] = pd.Series(result_result).copy()
+    result.reset_index(drop=True, inplace=True)
     for index, row in result.iterrows():
-        result_result.append(match_surgery_location_and_histo_location(row))
-    result["result"] = pd.Series(result_result)
+        result.loc[index, "result"] = match_surgery_location_and_histo_location(row)
 
-    failures = result.result.sum()
+    failures = surgery_count - result.result.sum()
 
     # filter all failures
-    failed_rows = result[result["result"] == True]
+    failed_rows = result[result["result"] == False]
     failed_rows.to_csv('reports/fhir/extra/surgery_and_histological_location_do_not_match_multiple.csv', index=False)
 
     result = {
@@ -989,6 +1128,7 @@ def surgery_and_histological_location_do_not_match_multiple(cdf, sdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 14: Surgery and histological location do not match (but multiple surgeries per patient)")
     return fig
 
 
@@ -1101,7 +1241,7 @@ def mismatch_between_surgery_location_and_surgery_type(sdf):
     result.reset_index(drop=True, inplace=True)
     for index, row in result.iterrows():
         result.loc[index, "surgery_check"] = get_valid_surgeries(row)
-        # TODO opravit potom ostatní iterrows()
+
     result = result[result['surgery_check'] != "Valid"]
 
     failures = result.shape[0]
@@ -1113,6 +1253,7 @@ def mismatch_between_surgery_location_and_surgery_type(sdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 15: Mismatch between surgery location and surgery type")
     return fig
 
 
@@ -1147,6 +1288,7 @@ def end_time_is_before_start_time(pdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 16: Negative event (treatment/response) duration: end time is before start time")
     return fig
 
 
@@ -1180,7 +1322,7 @@ def count_adjusted_overall_survival(time_df, procedure_df, condition_df):
 
 
 # 17
-# only for surgery, targeted therapy and radiation therapy
+# only for targeted therapy and radiation therapy
 def event_starts_or_ends_after_survival_of_patient_procedure(patient_df, procedure_df, time_df, condition_df):
     """
     Warning # 17
@@ -1221,6 +1363,7 @@ def event_starts_or_ends_after_survival_of_patient_procedure(patient_df, procedu
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 17: Event (treatment/response) starts or ends after survival of patient - only for targeted therapy and radiation therapy")
     return fig
 
 
@@ -1263,6 +1406,7 @@ def event_starts_or_ends_after_survival_of_patient(patient_df, df, time_df, cond
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 17: Event (treatment/response) starts or ends after survival of patient - for response and surgery")
     return fig
 
 
@@ -1301,6 +1445,7 @@ def start_of_response_to_therapy_is_before_diagnosis(odf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 18: Start of response to therapy is before diagnosis")
     return fig
 
 
@@ -1342,6 +1487,7 @@ def patient_died_but_last_response_is_complete(pdf, odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 19: Suspect incomplete followup: patient died of colon cancer while last response to therapy is 'Complete response'")
     return fig
 
 # 20
@@ -1376,6 +1522,7 @@ def start_of_response_to_therapy_is_in_the_future(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 20: Start of response to therapy is in the future")
     return fig
 
 # 21
@@ -1414,6 +1561,7 @@ def start_of_therapy_is_before_diagnosis(pdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 21: Start of therapy is before diagnosis")
     return fig
 
 
@@ -1452,6 +1600,7 @@ def start_of_treatment_is_in_the_future(pdf, cdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 22: Start of treatment is in the future")
     return fig
 
 
@@ -1487,6 +1636,7 @@ def end_of_treatment_is_in_the_future(pdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 23: End of treatment is in the future")
     return fig
 
 
@@ -1523,8 +1673,9 @@ def non_surgery_therapy_starts_and_ends_in_week_0_since_initial_diagnosis(pdf, c
         "Count": [count_of_rows, incorrect_count]
     }
     dff = pd.DataFrame(result)
-    fig_dff = px.bar(dff, x='Records', y='Count')
-    return fig_dff
+    fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 24: Non-surgery therapy starts and ends in week 0 since initial diagnosis (maybe false positive)")
+    return fig
 
 
 def get_stage(row):
@@ -1557,7 +1708,7 @@ def get_stage(row):
             return None
         elif m_coding_code == "M0":
             if t_coding_code == "Tis" and n_coding_code == "N0":
-                return None
+                return "0"
             elif (t_coding_code == "T1" or t_coding_code == "T2") and n_coding_code == "N0":
                 return "I"
             elif t_coding_code == "T3" and n_coding_code == "N0":
@@ -1571,9 +1722,9 @@ def get_stage(row):
             elif n_coding_code == "N2":
                 return "IIIC"
             else:
-                return "Unknown combination of pTN values in TNM 6th ed: pT = " + t_coding_code + ", pN = " + n_coding_code
+                return None
         else:
-            return "Unknown M value for TNM 6th ed: pM = " + m_coding_code
+            return None
     elif uicc_version == "7th":
         if m_coding_code == "M1":
             return "IV"
@@ -1620,9 +1771,9 @@ def get_stage(row):
                   or n_coding_code == "N2b"):
                 return "III"
             else:
-                return "Unknown combination of pTN values in TNM 7th ed: pT = " + t_coding_code + ", pN = " + n_coding_code
+                return None
         else:
-            return "Unknown M value in TNM 7th ed: " + m_coding_code
+            return None
     return None
 
 
@@ -1669,6 +1820,7 @@ def mismatch_between_provided_and_computed_stage_value(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 26: Mismatch between provided and computed stage value")
     return fig
 
 
@@ -1695,12 +1847,13 @@ def sus_tnm_combo_for_uicc_version_or_uncomputable_stage(odf):
     result = result[result['n_coding_code'] != "NX"]
     result = result[((result['method_coding_code'] == "444256004") | (result["method_coding_code"] == "443830009"))]
 
-    result_result = []
+    result_result = [None for _ in range(all)]
+    result["uicc_stage_computed"] = pd.Series(result_result).copy()
+    result.reset_index(drop=True, inplace=True)
     for index, row in result.iterrows():
-        result_result.append(get_stage(row))
-    result["uicc_stage_computed"] = pd.Series(result_result)
+        result.loc[index, "uicc_stage_computed"] = get_stage(row)
 
-    result = result[result['uicc_stage_computed'].isnull()]
+    result = result[result['uicc_stage_computed'].isna()]
 
     failures = result.shape[0]
 
@@ -1714,6 +1867,7 @@ def sus_tnm_combo_for_uicc_version_or_uncomputable_stage(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 27: Suspicious TNM value combination for given UICC version (e.g., N2a for UICC version 6) or uncomputable UICC stage")
     return fig
 
 
@@ -1755,6 +1909,7 @@ def pnx_and_missing_uicc_stage(odf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Warning # 28: pNX provided in TNM values, while UICC stage is determined (how?)")
     return fig
 
 
@@ -1792,6 +1947,7 @@ def create_plot_without_preservation_mode(pdf, sdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 4 + 14: createPlotWithoutPreservationMode")
     return fig
 
 
@@ -1829,6 +1985,7 @@ def create_plots_without_response_to_therapy(pdf, rdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 12: createPlotsWithoutResponseToTherapy")
     return fig
 
 
@@ -1872,6 +2029,7 @@ def get_patients_with_preservation_mode_but_without_ffpe(pdf, sdf):
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 40: getPatientsWithPreservationModeBUTWithoutFFPE")
     return fig
 
 
@@ -1934,5 +2092,6 @@ def treatment_after_complete_response_without_recurrence_diagnosis(pdf, response
     }
     dff = pd.DataFrame(result)
     fig = px.bar(dff, x='Records', y='Count')
+    fig.update_layout(title="Report # 42: getPatientsWhereNewTreatmentAfterCompleteResponseButNoProgressiveDiseaseOrTimeofRecurrenceAfterIt")
     return fig
 
